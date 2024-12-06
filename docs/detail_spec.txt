@@ -1,0 +1,306 @@
+# プログラム仕様書
+
+---
+
+## 1. フォルダ構造の解析
+
+プロジェクトのフォルダ構造は以下の通りです。
+
+```
+bigquery_gsc/
+├── .gitignore
+├── .req_hash
+├── README.md
+├── config/
+│   ├── boxwood-dynamo-384411-6dec80faabfc.json
+│   ├── secrets.env
+│   └── settings.ini
+├── data/
+├── docs/
+│   ├── .gitkeep
+│   └── merge.txt
+├── logs/
+│   └── .gitkeep
+├── requirements.txt
+├── run.bat
+├── run_dev.bat
+├── spec_tools/
+│   ├── generate_detailed_spec.py
+│   ├── generate_spec.py
+│   ├── logs/
+│   │   └── .gitkeep
+│   ├── merge_files.py
+│   ├── prompt/
+│   │   ├── README_tmp.md
+│   │   ├── prompt_generate_detailed_spec.txt
+│   │   └── prompt_requirements_spec.txt
+│   └── utils.py
+├── spec_tools_run.bat
+├── src/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── modules/
+│   │   ├── __init__.py
+│   │   └── module1.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── environment.py
+│       ├── helpers.py
+│       └── logging_config.py
+└── tests/
+    └── __init__.py
+```
+
+### ファイルとフォルダの種類
+
+- **Pythonコード**:
+  - `spec_tools/generate_detailed_spec.py`
+  - `spec_tools/generate_spec.py`
+  - `spec_tools/merge_files.py`
+  - `spec_tools/utils.py`
+  - `src/main.py`
+  - `src/utils/environment.py`
+  - `src/utils/logging_config.py`
+
+- **設定ファイル**:
+  - `config/boxwood-dynamo-384411-6dec80faabfc.json`
+  - `config/secrets.env`
+  - `config/settings.ini`
+  - `requirements.txt`
+
+- **その他**:
+  - `.gitignore`
+  - `.req_hash`
+  - `README.md`
+  - `run.bat`
+  - `run_dev.bat`
+  - `spec_tools_run.bat`
+
+### 集計
+
+- **ファイル数**: 20
+- **フォルダ数**: 8
+
+---
+
+## 2. ファイルごとの役割と依存関係
+
+| ファイル名                             | 役割                                                                 | 依存関係                                                                 |
+|----------------------------------------|----------------------------------------------------------------------|--------------------------------------------------------------------------|
+| `generate_detailed_spec.py`            | 詳細な仕様書を生成する。                                             | `utils.py`, `dotenv`, `OpenAIConfig`                                     |
+| `generate_spec.py`                     | 仕様書を生成する。                                                   | `utils.py`, `dotenv`, `OpenAIConfig`                                     |
+| `merge_files.py`                       | Pythonファイルをマージし、フォルダ構造を統合した出力を生成する。     | `utils.py`, `argparse`, `logging`, `os`, `configparser`                  |
+| `utils.py`                             | ファイル操作、設定読み込み、ログ設定など共通機能を提供。             | `os`, `logging`, `fnmatch`, `configparser`, `anytree`, `OpenAI`          |
+| `main.py`                              | メインエントリーポイント。環境設定を行い、ログを出力する。           | `utils/environment.py`, `utils/logging_config.py`                        |
+| `environment.py`                       | 環境設定と環境変数の管理を行うユーティリティクラスを提供。           | `os`, `dotenv`, `configparser`, `pathlib`                                |
+| `logging_config.py`                    | ログの設定と初期化を行う。                                           | `logging`, `datetime`, `pathlib`                                         |
+
+---
+
+## 3. クラス定義の詳細
+
+### 3.1 `generate_detailed_spec.py`
+
+#### `SpecificationGenerator`
+
+- **概要**: 仕様書生成を管理するクラス。
+
+- **属性**
+  - `ai_config`: `OpenAIConfig` - AI関連の設定。
+
+- **メソッド**
+  - `__init__`: 初期化を行う。
+  - `generate`: 仕様書を生成してファイルに保存する。
+  - `_read_merge_file`: `merge.txt` ファイルの内容を読み込む。
+  - `_read_prompt_file`: プロンプトファイルを読み込む。
+
+- **依存関係**: `os`, `utils`, `OpenAIConfig`
+
+### 3.2 `generate_spec.py`
+
+#### `SpecificationGenerator`
+
+- **概要**: 仕様書生成を管理するクラス。
+
+- **属性**
+  - `ai_config`: `OpenAIConfig` - AI関連の設定。
+
+- **メソッド**
+  - `__init__`: 初期化を行う。
+  - `generate`: 仕様書を生成してファイルに保存する。
+  - `_read_merge_file`: `merge.txt` ファイルの内容を読み込む。
+  - `_read_prompt_file`: プロンプトファイルを読み込む。
+  - `_write_api_key_error`: APIキーエラーを書き出す。
+  - `update_readme`: README.md を更新する。
+
+- **依存関係**: `os`, `utils`, `OpenAIConfig`
+
+### 3.3 `merge_files.py`
+
+#### `PythonFileMerger`
+
+- **概要**: Pythonファイルをマージして、フォルダ構造と統合する。
+
+- **属性**
+  - `settings`: `dict` - 設定情報。
+
+- **メソッド**
+  - `__init__`: 初期化を行う。
+  - `_generate_tree_structure`: ディレクトリ構造を生成する。
+  - `_collect_python_files`: Pythonファイルを収集する。
+  - `_merge_files_content`: ファイル内容をマージする。
+  - `_write_output`: マージした内容をファイルに書き込む。
+  - `process`: マージ処理を実行する。
+
+- **依存関係**: `os`, `utils`
+
+---
+
+## 4. 各ファイル内の関数リスト
+
+### ファイル名: generate_detailed_spec.py
+
+- `generate_detailed_specification`: 詳細仕様書を生成。
+
+### ファイル名: generate_spec.py
+
+- `generate_specification`: 仕様書を生成。
+
+### ファイル名: merge_files.py
+
+- `merge_py_files`: マージ処理のエントリーポイント。
+- `parse_arguments`: コマンドライン引数を解析する。
+- `main`: メイン処理を実行。
+
+### ファイル名: utils.py
+
+- `normalize_path`: パスを正規化。
+- `read_settings`: 設定ファイルを読み込む。
+- `read_file_safely`: ファイルを安全に読み込む。
+- `write_file_content`: ファイルに内容を書き込む。
+- `get_python_files`: Pythonファイルを取得。
+- `setup_logger`: ロガーをセットアップ。
+- `ensure_directories_exist`: 指定されたディレクトリを作成。
+- `initialize_openai_client`: OpenAIクライアントを初期化。
+- `generate_tree_structure`: ディレクトリ構造を生成。
+- `update_readme`: README.md を更新。
+- `get_ai_response`: OpenAI APIでAI応答を取得。
+
+### ファイル名: main.py
+
+- `setup_configurations`: 設定ファイルと機密情報をロード。
+- `main`: メイン処理。
+
+### ファイル名: environment.py
+
+- `set_project_root`: プロジェクトのルートディレクトリを設定。
+- `get_project_root`: プロジェクトのルートディレクトリを取得。
+- `load_env`: 環境変数をロード。
+- `get_env_var`: 環境変数を取得。
+- `get_config_file`: 設定ファイルのパスを取得。
+- `get_config_value`: 設定ファイルから値を取得。
+- `resolve_path`: パスを絶対パスに変換。
+- `get_service_account_file`: サービスアカウントファイルのパスを取得。
+- `get_environment`: APP_ENV を取得。
+- `get_openai_api_key`: OpenAI APIキーを取得。
+- `get_openai_model`: OpenAIモデル名を取得。
+
+### ファイル名: logging_config.py
+
+- `setup_logging`: ロギング設定をセットアップ。
+- `get_logger`: 名前付きロガーを取得。
+
+---
+
+## 5. 関数ごとの詳細仕様
+
+### 関数名: generate_detailed_specification
+
+- **概要**: 詳細仕様書を生成する。
+- **入力**: なし
+- **出力**: なし
+- **内部処理**:
+  1. `SpecificationGenerator`のインスタンスを生成
+  2. `generate`メソッドを呼び出し、仕様書を生成
+  3. 出力ファイルのパスをログに記録
+- **依存関係**: `SpecificationGenerator`, `logging`
+
+### 関数名: generate_specification
+
+- **概要**: 仕様書を生成する。
+- **入力**: なし
+- **出力**: なし
+- **内部処理**:
+  1. `SpecificationGenerator`のインスタンスを生成
+  2. `generate`メソッドを呼び出し、仕様書を生成
+  3. 出力ファイルのパスをログに記録
+- **依存関係**: `SpecificationGenerator`, `logging`
+
+### 関数名: merge_py_files
+
+- **概要**: マージ処理のエントリーポイント。
+- **入力**: 
+  - `settings_path` (str): 設定ファイルのパス
+  - `logger` (Optional[logging.Logger]): 使用するロガー
+- **出力**: `Optional[str]`: 出力ファイルのパス
+- **内部処理**:
+  1. `PythonFileMerger`のインスタンスを生成
+  2. `process`メソッドを呼び出し、ファイルマージを実行
+  3. 出力ファイルのパスをログに記録
+- **依存関係**: `PythonFileMerger`, `logging`
+
+### 関数名: parse_arguments
+
+- **概要**: コマンドライン引数を解析する。
+- **入力**: なし
+- **出力**: `argparse.Namespace`: コマンドライン引数
+- **内部処理**:
+  1. `argparse.ArgumentParser`を使用して引数を解析
+  2. `--settings`引数を追加
+  3. 解析結果を返す
+- **依存関係**: `argparse`
+
+### 関数名: main
+
+- **概要**: メイン処理を実行。
+- **入力**: なし
+- **出力**: なし
+- **内部処理**:
+  1. `parse_arguments`で引数を取得
+  2. `merge_py_files`を呼び出し、マージ処理を実行
+  3. 出力ファイルのパスをログに記録
+- **依存関係**: `parse_arguments`, `merge_py_files`, `logging`
+
+### 関数名: setup_configurations
+
+- **概要**: 設定ファイルと機密情報をロード。
+- **入力**: なし
+- **出力**: `tuple`: 設定値、秘密情報、環境
+- **内部処理**:
+  1. 環境変数をロード
+  2. `settings.ini`から値を取得
+  3. `secrets.env`から値を取得
+  4. 環境を取得
+  5. 結果をログに記録
+- **依存関係**: `EnvironmentUtils`, `logging`
+
+---
+
+## 6. データフローとモジュール相互作用
+
+- **入力元**:
+  - `config/secrets.env`: 環境変数の設定
+  - `config/settings.ini`: アプリケーション設定
+  - `docs/merge.txt`: マージされたコードとフォルダ構造
+
+- **処理順序**:
+  1. `main.py`が`environment.py`から設定情報を取得。
+  2. `generate_detailed_spec.py`が`merge.txt`を読み込み、仕様書を生成。
+  3. `generate_spec.py`が`merge.txt`を読み込み、仕様書を生成。
+  4. `merge_files.py`がPythonファイルを収集し、`merge.txt`に書き込む。
+
+- **出力先**:
+  - `docs/detail_spec.txt`: 詳細仕様書
+  - `docs/requirements_spec.txt`: 仕様書
+
+このプロジェクトでは、`spec_tools`ディレクトリにあるスクリプトが主に仕様書生成を担当し、`src`ディレクトリ内のスクリプトが環境設定とログ管理を行っています。
