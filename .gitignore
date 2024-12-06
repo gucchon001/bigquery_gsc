@@ -27,6 +27,7 @@ var/
 # Credentials and Config
 json/*.json
 .env
+*.json
 
 # IDE
 .idea/
