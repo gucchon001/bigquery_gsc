@@ -1,47 +1,50 @@
 ## 仕様
 # 機能要件仕様書
 
-### 1. システム概要
-- プログラムの全体的な目的と対象のユーザー
-  - このプログラムは、Pythonプロジェクト内のソースコードファイルを収集し、その内容をマージして仕様書を生成するためのツールです。仕様書はOpenAIのモデルを使用して生成されます。このツールは、コードの仕様を文書化したい開発者やプロジェクトマネージャー向けに設計されています。プログラムは特にAIを使用した自動化されたドキュメント生成に重点を置いています。
+## 1. システム概要
+- **プログラムの全体的な目的と対象のユーザー**:
+  本プログラムは、Google Search Console（GSC）のデータを取得し、そのデータをGoogle BigQueryに挿入するためのシステムです。主なユーザーは、SEOデータの分析やレポート作成を自動化したいデータアナリストやマーケティング担当者です。
 
-### 2. 主要機能要件
-- 提供される各機能の説明
-  - **SpecificationGeneratorクラス**:
-    - 仕様書を生成するための主要なクラス。OpenAIのAPIを使用して、コード内容をもとに仕様書を生成します。
-    - `generate()`メソッド: プロンプトとコードを結合してAIに送り、生成された仕様書をファイルに保存します。
-    - `_read_merge_file()`メソッド: マージされたコードファイルを読み込みます。
-    - `_read_prompt_file()`メソッド: 仕様書生成に使用するプロンプトを読み込みます。
-  
-  - **PythonFileMergerクラス**:
-    - Pythonファイルをマージする機能を提供。指定されたディレクトリからPythonファイルを収集し、フォルダ構造とファイル内容を統合したファイルを生成します。
-    - `_collect_python_files()`メソッド: 指定されたディレクトリからPythonファイルを収集します。
-    - `_merge_files_content()`メソッド: 収集したファイルの内容をマージします。
-  
-  - **環境設定とログ管理**:
-    - 環境変数や設定ファイルからの情報取得をサポートするユーティリティクラスが用意されています。
-    - ログ設定が包括的に管理されており、アプリケーションの動作を記録します。
+## 2. 主要機能要件
+- **データ取得と処理**:
+  - `GSCConnector` クラスを利用して、指定された日付範囲のGSCデータを取得します。
+  - 取得したデータは、クエリやページURLごとに集計され、クリック数、インプレッション数、平均順位を計算します。
 
-### 3. 非機能要件
-- パフォーマンス
-  - 仕様書生成はAIモデルを使用するため、ネットワークの速度やAPIの応答時間に依存します。
-  
-- セキュリティ
-  - OpenAI APIキーのセキュリティが重要。環境変数や設定ファイルで管理されており、公開されないように注意が必要です。
-  
-- 可用性
-  - エラーログが詳細に記録されており、問題発生時のトラブルシューティングがしやすい構造になっています。
+- **データの保存**:
+  - 集計されたデータをGoogle BigQueryの指定されたテーブルに挿入します。
+  - 挿入時には、日付やURL、クエリ、クリック数、インプレッション数、平均順位などの情報を管理します。
 
-### 4. 技術要件
-- 開発環境
-  - Python 3.x（3.6以上推奨）
-  - 利用ライブラリ: dotenv, icecream, anytree, openaiなど
-  
-- システム環境
-  - OS: クロスプラットフォーム（Windows, macOS, Linuxで動作可能）
-  
-- 必要なライブラリ
-  - `requirements.txt`で指定されたPythonパッケージが必要です。特に、OpenAI APIを使用するために`openai`ライブラリが必要です。 
+- **進捗管理**:
+  - `process_gsc_data` 関数で、GSCデータのフェッチ状況を追跡し、次のフェッチ開始位置を記録します。
+
+- **設定管理**:
+  - 環境変数や設定ファイル（`settings.ini`、`secrets.env`）から必要な情報を読み込み、システムの設定を初期化します。
+
+## 3. 非機能要件
+- **パフォーマンス**:
+  - GSC APIの1日あたりのクォータに従い、効率的にデータをフェッチできるようにバッチサイズを調整しています。
+  - BigQueryへのデータ挿入はバッチ処理で行われ、効率的なデータ転送が可能です。
+
+- **セキュリティ**:
+  - Googleサービスにアクセスするために、サービスアカウントの認証情報を使用します。これにより、APIキーのセキュリティが確保されています。
+  - `.env`ファイルや設定ファイルに機密情報を保持し、`.gitignore`でこれらをバージョン管理から除外しています。
+
+- **可用性**:
+  - ロギング機能を備えており、エラーのトラッキングやデバッグが容易です。
+  - エラーハンドリングが実装されており、APIエラーやデータ挿入エラーに対して適切な対応を行います。
+
+## 4. 技術要件
+- **開発環境**:
+  - Python 3.xが必要です。特に依存関係として、Google Cloud関連のライブラリ（`google-cloud-bigquery`、`google-auth`など）とOpenAI API用のライブラリが必要です。
+  - `requirements.txt` で指定されているPythonパッケージをインストールする必要があります。
+
+- **システム環境**:
+  - 動作にはGoogle Cloud Platform（GCP）のプロジェクト設定と認証情報が必要です。
+  - 環境変数や設定ファイルを通じて、APIキーやその他の設定を管理します。
+
+- **必要なライブラリ**:
+  - `google-cloud-bigquery`、`google-auth`、`google-api-python-client`、`dotenv`、`pytz`、`icecream`などが必要です。
+  - これらのライブラリは、GCPサービスとの連携やロギング、データ処理を容易にします。 
 
 ---
 
@@ -56,14 +59,19 @@ bigquery_gsc
 ├── README.md
 ├── config
 │   ├── boxwood-dynamo-384411-6dec80faabfc.json
+│   ├── gcp4-441506-56861cb0311a.json
+│   ├── gcp4-441506-affe38a981c3.json
 │   ├── secrets.env
 │   └── settings.ini
 ├── data
 ├── docs
 │   ├── .gitkeep
-│   └── merge.txt
+│   ├── detail_spec.txt
+│   ├── merge.txt
+│   └── requirements_spec.txt
 ├── logs
-│   └── .gitkeep
+│   ├── .gitkeep
+│   └── app_20241207.log.2024-12-07
 ├── requirements.txt
 ├── run.bat
 ├── run_dev.bat
@@ -84,14 +92,19 @@ bigquery_gsc
 │   ├── main.py
 │   ├── modules
 │   │   ├── __init__.py
-│   │   └── module1.py
+│   │   ├── date_initializer.py
+│   │   ├── gsc_fetcher.py
+│   │   └── gsc_handler.py
 │   └── utils
 │       ├── __init__.py
+│       ├── date_utils.py
 │       ├── environment.py
 │       ├── helpers.py
-│       └── logging_config.py
+│       ├── logging_config.py
+│       └── url_utils.py
 └── tests
-    └── __init__.py
+    ├── __init__.py
+    └── test_url_utils.py
 
 # Merged Python Files
 
@@ -401,7 +414,7 @@ OpenAI APIキーが設定されていないため、仕様書を生成できま�
 
             # 現在の日付を挿入
             current_date = datetime.now().strftime("%Y-%m-%d")
-            updated_content = updated_content.replace("2024-12-06", current_date)
+            updated_content = updated_content.replace("2024-12-08", current_date)
 
             # README.md に書き込む
             if write_file_content(readme_path, updated_content):
@@ -860,7 +873,7 @@ def update_readme(template_path: str, readme_path: str, spec_path: str, merge_pa
 
         # 現在の日付を挿入（オプション）
         current_date = datetime.now().strftime("%Y-%m-%d")
-        updated_content = updated_content.replace("2024-12-06", current_date)
+        updated_content = updated_content.replace("2024-12-08", current_date)
 
         # README.md に書き込む
         success = write_file_content(readme_path, updated_content)
@@ -934,8 +947,10 @@ File: src\__init__.py
 File: src\main.py
 ================================================================================
 
+#main.py
 from utils.environment import EnvironmentUtils as env
 from utils.logging_config import get_logger
+from modules.gsc_handler import process_gsc_data
 
 # 名前付きロガーを取得
 logger = get_logger(__name__)
@@ -975,6 +990,11 @@ def main() -> None:
     print(f'機密情報ファイルの設定完了{{"demo": "{secrets_demo}"}}')
     print('ログ設定完了')
 
+    # GSC データ取得処理を実行
+    logger.info("process_gsc_data を呼び出します。")
+    process_gsc_data()
+    logger.info("process_gsc_data の呼び出しが完了しました。")
+
 if __name__ == "__main__":
     main()
 
@@ -987,10 +1007,402 @@ File: src\modules\__init__.py
 
 
 ================================================================================
-File: src\modules\module1.py
+File: src\modules\date_initializer.py
 ================================================================================
 
- 
+# date_initializer.py
+from datetime import datetime, timedelta
+from google.cloud import bigquery
+from utils.date_utils import get_current_jst_datetime  # ユーティリティ関数のインポート
+
+def initialize_date_range_past_year():
+    """
+    過去1年間の日付を新しい順にリストとして生成
+    """
+    today = get_current_jst_datetime().date()  # 現在の日本時間を使用
+    one_year_ago = today - timedelta(days=365)  # 過去1年分を対象
+    return [today - timedelta(days=i) for i in range((today - one_year_ago).days + 1)]
+
+def get_next_date_range(config):
+    """
+    BigQueryの進捗状況を元に、次のデータ範囲を決定する。
+    """
+    client = bigquery.Client()
+    table_id = f"{config.config['BIGQUERY']['PROJECT_ID']}.{config.config['BIGQUERY']['DATASET_ID']}.T_progress_tracking"
+
+    query = f"""
+        SELECT data_date, record_position
+        FROM `{table_id}`
+        WHERE is_date_completed = FALSE
+        ORDER BY data_date DESC
+        LIMIT 1
+    """
+    query_job = client.query(query)
+    result = list(query_job.result())
+
+    if result:
+        last_date = result[0]["data_date"]
+        last_row = result[0]["record_position"] or 0
+        return last_date, last_row
+    else:
+        # 進捗がない場合、最新の日付から開始
+        today = get_current_jst_datetime().date()  # 現在の日本時間を使用
+        return today, 0
+
+def get_date_range_for_fetch(start_date_str=None, end_date_str=None):
+    """
+    開始日と終了日を指定された日付で設定。
+    指定がない場合はデフォルトで2日前のデータを取得対象とする。
+    """
+    today = get_current_jst_datetime().date()  # 現在の日本時間を使用
+
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    else:
+        start_date = today - timedelta(days=2)
+
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    else:
+        end_date = start_date
+    return start_date, end_date
+
+
+================================================================================
+File: src\modules\gsc_fetcher.py
+================================================================================
+
+# src/modules/gsc_fetcher.py
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from google.cloud import bigquery
+from utils.logging_config import get_logger
+from utils.date_utils import get_current_jst_datetime, format_datetime_jst
+from utils.url_utils import aggregate_records
+from datetime import datetime
+
+logger = get_logger(__name__)
+
+class GSCConnector:
+    """Google Search Console データを取得するクラス"""
+
+    def __init__(self, config):
+        """
+        コンストラクタ
+
+        Args:
+            config (Config): Config クラスのインスタンス
+        """
+        self.config = config
+        self.logger = get_logger(__name__)  # ロガーを初期化
+
+        # 認証情報ファイルのパスを Config から取得
+        credentials_path = self.config.credentials_path
+
+        if not credentials_path:
+            raise ValueError("Credentials path not set in config.")
+
+        # サービスアカウント認証を設定
+        credentials = service_account.Credentials.from_service_account_file(
+            str(credentials_path),
+            scopes=["https://www.googleapis.com/auth/webmasters.readonly"]
+        )
+
+        # GSC API クライアントを構築
+        self.service = build('searchconsole', 'v1', credentials=credentials)
+        self.logger.info("Google Search Console API クライアントを初期化しました。")
+
+    def fetch_records(self, date: str, start_record: int, limit: int):
+        """
+        指定された日付のGSCデータをフェッチします。
+
+        Args:
+            date (str): データ取得対象の日付（YYYY-MM-DD）
+            start_record (int): 取得開始位置
+            limit (int): 取得するレコード数
+
+        Returns:
+            tuple: (取得したレコードリスト, 次のレコード位置)
+        """
+        property_name = self.config.gsc_settings['url']  # 'site_url' を 'url' に変更
+
+        request = {
+            'startDate': date,
+            'endDate': date,
+            'dimensions': ['query', 'page'],  # 必要に応じて調整
+            'rowLimit': limit,
+            'startRow': start_record
+        }
+
+        try:
+            response = self.service.searchanalytics().query(
+                siteUrl=property_name,
+                body=request
+            ).execute()
+
+            records = response.get('rows', [])
+            next_record = start_record + len(records)
+
+            self.logger.info(f"日付 {date} のレコードを {len(records)} 件取得しました。次の開始位置: {next_record}")
+
+            return records, next_record
+
+        except HttpError as e:
+            self.logger.error(f"GSC API HTTP エラー: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            self.logger.error(f"GSC データの取得中にエラーが発生しました: {e}", exc_info=True)
+            raise
+
+    def insert_to_bigquery(self, records, date: str):
+        """
+        取得したGSCデータをBigQueryに挿入します。
+
+        Args:
+            records (list): GSCから取得したレコードのリスト
+            date (str): データ取得対象の日付（YYYY-MM-DD）
+        """
+        # データの集計
+        aggregated_records = aggregate_records(records)
+
+        if not aggregated_records:
+            self.logger.info("集計後のレコードがありません。")
+            return
+
+        # BigQuery クライアントを初期化
+        client = bigquery.Client(
+            credentials=self._get_bigquery_credentials(),
+            project=self.config.get_config_value('BIGQUERY', 'PROJECT_ID')
+        )
+
+        # 挿入先のテーブルIDを取得
+        table_id = f"{self.config.get_config_value('BIGQUERY', 'PROJECT_ID')}." \
+                f"{self.config.get_config_value('BIGQUERY', 'DATASET_ID')}." \
+                f"{self.config.get_config_value('BIGQUERY', 'TABLE_ID')}"
+
+        # データの整形
+        rows_to_insert = []
+        for record in aggregated_records:
+            row_data = {
+                "data_date": date,
+                "url": record['url'],
+                "query": record['query'],
+                "impressions": record['impressions'],
+                "clicks": record['clicks'],
+                "avg_position": record['avg_position'],  # 修正: sum_top_position から avg_position に変更
+                "insert_time_japan": format_datetime_jst(get_current_jst_datetime())  # DATETIME 型
+            }
+            rows_to_insert.append(row_data)
+
+        # データを挿入
+        errors = client.insert_rows_json(table_id, rows_to_insert)
+        if errors:
+            for error in errors:
+                for err in error.get('errors', []):
+                    location = err.get('location', 'unknown')
+                    message = err.get('message', 'No message provided.')
+                    self.logger.error(f"Error inserting row {error.get('index', 'unknown')}: {location} - {message}")
+            raise RuntimeError("BigQuery insertion encountered errors.")
+        else:
+            self.logger.info(f"BigQuery に {len(rows_to_insert)} 件のデータを挿入しました。")
+
+        # データを挿入
+        errors = client.insert_rows_json(table_id, rows_to_insert)
+        if errors:
+            for error in errors:
+                for err in error.get('errors', []):
+                    location = err.get('location', 'unknown')
+                    message = err.get('message', 'No message provided.')
+                    self.logger.error(f"Error inserting row {error.get('index', 'unknown')}: {location} - {message}")
+            raise RuntimeError("BigQuery insertion encountered errors.")
+        else:
+            self.logger.info(f"BigQuery に {len(rows_to_insert)} 件のデータを挿入しました。")
+
+    def fetch_and_insert_gsc_data(self, start_date=None, end_date=None):
+        """
+        指定された期間のGSCデータを取得し、BigQueryに挿入します。
+
+        Args:
+            start_date (str, optional): 開始日付（YYYY-MM-DD）
+            end_date (str, optional): 終了日付（YYYY-MM-DD）
+        """
+        start_date = start_date or self.config.gsc_settings['start_date']
+        end_date = end_date or datetime.now().strftime('%Y-%m-%d')
+        batch_size = self.config.gsc_settings['batch_size']
+
+        try:
+            records, _ = self.fetch_records(start_date, 0, batch_size)
+            if records:
+                self.insert_to_bigquery(records, start_date)
+        except Exception as e:
+            self._handle_error(e)
+
+    def _handle_error(self, exception):
+        """Unified error handling."""
+        error_message = "GSC API error" if isinstance(exception, HttpError) else f"Unexpected error: {exception}"
+        self.logger.error(error_message, exc_info=True)
+
+    def _get_bigquery_credentials(self):
+        """BigQuery 用の認証情報を取得します。"""
+        credentials_path = self.config.credentials_path
+        return service_account.Credentials.from_service_account_file(str(credentials_path))
+
+    def _bq_schema(self):
+        """Define and return the BigQuery table schema."""
+        return [
+            bigquery.SchemaField('data_date', 'DATE'),
+            bigquery.SchemaField('url', 'STRING'),
+            bigquery.SchemaField('query', 'STRING'),
+            bigquery.SchemaField('impressions', 'INTEGER'),
+            bigquery.SchemaField('clicks', 'INTEGER'),
+            bigquery.SchemaField('avg_position', 'FLOAT'),  # フィールド名を統一
+            bigquery.SchemaField('insert_time_japan', 'DATETIME')  # DATETIME 型
+        ]
+
+================================================================================
+File: src\modules\gsc_handler.py
+================================================================================
+
+# src/modules/gsc_handler.py
+from datetime import datetime, timedelta
+from google.cloud import bigquery
+from google.oauth2 import service_account
+
+from modules.gsc_fetcher import GSCConnector
+from modules.date_initializer import get_date_range_for_fetch
+from utils.logging_config import get_logger
+from utils.environment import config
+from utils.date_utils import get_current_jst_datetime, format_datetime_jst
+
+# 名前付きロガーを取得
+logger = get_logger(__name__)
+
+def process_gsc_data():
+    """GSC データを取得し、BigQuery に保存するメイン処理"""
+    logger.info("process_gsc_data が呼び出されました。")
+
+    # 取得する日付範囲を設定
+    start_date, end_date = get_date_range_for_fetch("2024-12-07", "2023-01-01")
+    logger.info(f"Processing GSC data for date range: {start_date} to {end_date}")
+
+    # GSCConnector に Config を渡す
+    gsc_connector = GSCConnector(config)
+    logger.info("GSCConnector を初期化しました。")
+
+    # GSC APIの1日あたりのクォータを設定
+    daily_api_limit = int(config.get_config_value('GSC', 'DAILY_API_LIMIT'))
+    processed_count = 0
+
+    # 前回の処理位置を取得
+    last_position = get_last_processed_position(config)
+    if last_position:
+        logger.info(f"Last position: date={last_position['date']}, record={last_position['record']}")
+    else:
+        logger.info("No previous processing position found.")
+
+    current_date = last_position["date"] if last_position else start_date
+    start_record = last_position["record"] if last_position else 0
+
+    while current_date >= end_date and processed_count < daily_api_limit:
+        try:
+            remaining_quota = daily_api_limit - processed_count
+            fetch_limit = 25000  # 各API呼び出しで最大レコード数を取得
+
+            logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
+            records, next_record = gsc_connector.fetch_records(
+                date=str(current_date),
+                start_record=start_record,
+                limit=fetch_limit
+            )
+            logger.info(f"Fetched {len(records)} records.")
+
+            if records:
+                gsc_connector.insert_to_bigquery(records, str(current_date))
+                logger.info(f"Inserted {len(records)} records into BigQuery.")
+                processed_count += 1  # API呼び出し回数をカウント
+
+                # 進捗保存
+                save_processing_position(config, {
+                    "date": current_date,
+                    "record": next_record,
+                    "is_date_completed": len(records) < fetch_limit
+                })
+                logger.info(f"Progress saved for date {current_date}.")
+
+                if len(records) < fetch_limit:
+                    # 日付完了、次の日付へ
+                    current_date -= timedelta(days=1)
+                    start_record = 0
+                    logger.info(f"Moving to next date: {current_date}")
+                else:
+                    # 同じ日の続きから
+                    start_record = next_record
+                    logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
+            else:
+                # データなし、次の日付へ
+                current_date -= timedelta(days=1)
+                start_record = 0
+                logger.info(f"No records fetched. Moving to next date: {current_date}")
+
+        except Exception as e:
+            logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+            break
+
+    logger.info(f"Processed {processed_count} API calls in total")
+
+def save_processing_position(config, position):
+    """処理位置を保存"""
+    # 認証情報を明示的に渡す
+    credentials_path = config.credentials_path
+    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
+    table_id = config.progress_table_id
+
+    # 現在の日本時間を取得し、タイムゾーン情報を除去
+    updated_at_jst = format_datetime_jst(get_current_jst_datetime())  # JSTを設定
+    logger.debug(f"Updated_at (JST): {updated_at_jst}")  # デバッグログ追加
+
+    rows_to_insert = [{
+        "data_date": str(position["date"]),
+        "record_position": position["record"],
+        "is_date_completed": position["is_date_completed"],
+        "updated_at": updated_at_jst  # DATETIME 型に適した形式
+    }]
+
+    errors = client.insert_rows_json(table_id, rows_to_insert)
+    if errors:
+        logger.error(f"Failed to save processing position for {position['date']}: {errors}")
+        raise RuntimeError(f"Failed to save processing position: {errors}")
+    else:
+        logger.info(f"Progress updated for {position['date']} with record position: {position['record']}")
+
+def get_last_processed_position(config):
+    """最後に処理したポジションを取得"""
+    credentials_path = config.credentials_path
+    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
+    table_id = config.progress_table_id
+
+    query = f"""
+        SELECT data_date, record_position
+        FROM `{table_id}`
+        WHERE is_date_completed = FALSE
+        ORDER BY updated_at DESC
+        LIMIT 1
+    """
+    try:
+        query_job = client.query(query)
+        results = list(query_job.result())
+        if results:
+            return {
+                "date": results[0].data_date,  # data_dateはすでにdatetime.date型
+                "record": results[0].record_position
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching last processed position: {e}", exc_info=True)
+        return None
 
 
 ================================================================================
@@ -998,6 +1410,38 @@ File: src\utils\__init__.py
 ================================================================================
 
  
+
+
+================================================================================
+File: src\utils\date_utils.py
+================================================================================
+
+# utils/date_utils.py
+from datetime import datetime
+import pytz
+
+def get_current_jst_datetime():
+    """
+    現在の日本時間（JST）を取得します。
+    
+    Returns:
+        datetime: 現在のJSTのdatetimeオブジェクト。
+    """
+    jst = pytz.timezone('Asia/Tokyo')
+    return datetime.now(jst).replace(microsecond=0)
+
+def format_datetime_jst(jst_datetime, fmt="%Y-%m-%d %H:%M:%S"):
+    """
+    JSTのdatetimeオブジェクトを指定されたフォーマットで文字列に変換します。
+    
+    Args:
+        jst_datetime (datetime): JSTのdatetimeオブジェクト。
+        fmt (str): 出力フォーマット。
+    
+    Returns:
+        str: フォーマットされた日付文字列。
+    """
+    return jst_datetime.strftime(fmt)
 
 
 ================================================================================
@@ -1009,6 +1453,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, Any
 import configparser
+import logging
 
 class EnvironmentUtils:
     """プロジェクト全体で使用する環境関連のユーティリティクラス"""
@@ -1186,6 +1631,155 @@ class EnvironmentUtils:
         """
         return EnvironmentUtils.get_config_value("OPENAI", "model", default="gpt-4o")
 
+class Config:
+    def __init__(self, env='development'):
+        self.env = env
+        self.logger = logging.getLogger(__name__)
+        self.base_path = Path(__file__).parent.parent.parent
+        self.config = self._load_config()
+        self._load_secrets()
+        self._setup_credentials()
+
+        # GSC設定を初期化時にロード
+        self._gsc_settings = self._load_gsc_settings()
+
+    def _load_gsc_settings(self):
+        """GSC関連の設定を初期化時に1度だけ読み込む"""
+        try:
+            settings = {
+                'url': self.config['GSC']['SITE_URL'],
+                'start_date': self.config['GSC'].get('START_DATE', '2024-11-01'),
+                'batch_size': int(self.config['GSC']['BATCH_SIZE']),
+                'metrics': self.config['GSC']['METRICS'].split(','),
+                'dimensions': self.config['GSC']['DIMENSIONS'].split(','),
+                'retry_count': int(self.config['GSC']['RETRY_COUNT']),
+                'retry_delay': int(self.config['GSC']['RETRY_DELAY']),
+            }
+            self.logger.info(f"GSC settings loaded: {settings}")  # 初回のみログ出力
+            return settings
+        except KeyError as e:
+            self.logger.error(f"Missing key in GSC configuration: {e}")
+            raise
+        except ValueError as e:
+            self.logger.error(f"Invalid value in GSC configuration: {e}")
+            raise
+
+    @property
+    def gsc_settings(self):
+        """初期化済みの GSC 設定を返す"""
+        return self._gsc_settings
+
+    def _load_config(self):
+        """設定ファイルの読み込み"""
+        config = configparser.ConfigParser()
+        config_path = self.base_path / 'config' / 'settings.ini'
+
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+
+        try:
+            with open(config_path, 'r', encoding='utf-8-sig') as f:
+                config.read_file(f)
+            self.logger.info(f"Loaded configuration from: {config_path}")
+        except UnicodeDecodeError:
+            try:
+                with open(config_path, 'r', encoding='cp932') as f:
+                    config.read_file(f)
+                self.logger.warning(f"Loaded configuration using fallback encoding: {config_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to load configuration file: {e}")
+                raise
+
+        return config
+
+    def _load_secrets(self):
+        """環境変数ファイルの読み込み"""
+        env_path = self.base_path / 'config' / 'secrets.env'
+        if not env_path.exists():
+            raise FileNotFoundError(f"Secrets file not found: {env_path}")
+
+        try:
+            load_dotenv(env_path, encoding='utf-8')
+            self.logger.info(f"Loaded environment variables from: {env_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to load secrets file: {e}")
+            raise
+
+    def _setup_credentials(self):
+        """認証情報ファイルのパスを設定"""
+        credentials_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if not credentials_file:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS not set in secrets.env")
+
+        credentials_path = self.base_path / 'config' / credentials_file
+        if not credentials_path.exists():
+            raise FileNotFoundError(
+                f"Credentials file not found: {credentials_path}\n"
+                f"Expected file: {credentials_file}\n"
+                f"Looking in: {self.base_path / 'config'}"
+            )
+
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(credentials_path.absolute())
+        self.logger.info(f"Google credentials set: {credentials_path}")
+        # 確認のために環境変数を追加で出力
+        self.logger.debug(f"GOOGLE_APPLICATION_CREDENTIALS is set to: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+
+    @property
+    def log_dir(self):
+        """ログディレクトリのパスを取得"""
+        log_dir = self.base_path / 'logs'
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir
+
+    @property
+    def credentials_path(self):
+        return os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+    @property
+    def debug_mode(self):
+        """デバッグモードの有効化"""
+        try:
+            return self.config[self.env].getboolean('DEBUG')
+        except KeyError:
+            self.logger.warning("DEBUG setting not found; defaulting to False.")
+            return False
+
+    @property
+    def log_level(self):
+        """ログレベルの取得"""
+        try:
+            return self.config[self.env]['LOG_LEVEL']
+        except KeyError:
+            self.logger.warning("LOG_LEVEL setting not found; defaulting to INFO.")
+            return 'INFO'
+
+    @property
+    def progress_table_id(self):
+        """BigQuery進行状況トラッキングテーブルのIDを取得"""
+        try:
+            return (
+                f"{self.config['BIGQUERY']['PROJECT_ID']}."
+                f"{self.config['BIGQUERY']['DATASET_ID']}."
+                f"{self.config['BIGQUERY']['PROGRESS_TABLE_ID']}"
+            )
+        except KeyError as e:
+            self.logger.error(f"Missing BigQuery tracking table setting: {e}")
+            raise
+
+    def get_config_value(self, section, key):
+        """指定されたセクションとキーの設定値を取得"""
+        try:
+            return self.config[section][key]
+        except KeyError as e:
+            self.logger.error(f"Missing configuration for {section}.{key}: {e}")
+            raise
+
+    def __str__(self):
+        return f"Config(env={self.env}, base_path={self.base_path})"
+
+# グローバルインスタンスの作成
+config = Config()
 
 ================================================================================
 File: src\utils\helpers.py
@@ -1262,8 +1856,143 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     return logging.getLogger(name)
 
 ================================================================================
+File: src\utils\url_utils.py
+================================================================================
+
+# src/utils/url_utils.py
+from urllib.parse import urlparse, urlunparse
+from collections import defaultdict
+
+from urllib.parse import urlparse, urlunparse
+from collections import defaultdict
+
+def normalize_url(url):
+    """
+    URLからクエリパラメータとフラグメント識別子を除去します。
+
+    Args:
+        url (str): 正規化前のURL
+
+    Returns:
+        str: クエリパラメータとフラグメント識別子を除去したURL
+    """
+    parsed_url = urlparse(url)
+    # クエリとフラグメントを除去
+    normalized_url = urlunparse(parsed_url._replace(query="", fragment=""))
+    return normalized_url
+
+def aggregate_records(records):
+    """
+    レコードをURLでグルーピングし、クリック数、インプレッション数、平均順位を集計します。
+
+    Args:
+        records (list): GSCから取得したレコードのリスト
+
+    Returns:
+        list: 集計後のレコードリスト
+    """
+    aggregated_data = defaultdict(lambda: {"clicks": 0, "impressions": 0, "positions": []})
+
+    for record in records:
+        query = record['keys'][0]
+        url = record['keys'][1]
+        clicks = record.get('clicks', 0)
+        impressions = record.get('impressions', 0)
+        position = record.get('position', 0.0)
+
+        normalized_url = normalize_url(url)
+
+        key = (query, normalized_url)
+        aggregated_data[key]["clicks"] += clicks
+        aggregated_data[key]["impressions"] += impressions
+        aggregated_data[key]["positions"].append(position)
+
+    # 平均順位を計算
+    final_records = []
+    for (query, url), data in aggregated_data.items():
+        avg_position = sum(data["positions"]) / len(data["positions"]) if data["positions"] else 0.0
+        final_records.append({
+            "query": query,
+            "url": url,
+            "clicks": data["clicks"],
+            "impressions": data["impressions"],
+            "avg_position": avg_position  # フィールド名を統一
+        })
+
+    return final_records
+
+
+================================================================================
 File: tests\__init__.py
 ================================================================================
+
+ 
+
+
+================================================================================
+File: tests\test_url_utils.py
+================================================================================
+
+# tests/test_url_utils.py
+import unittest
+from src.utils.url_utils import normalize_url, aggregate_records
+
+class TestURLUtils(unittest.TestCase):
+
+    def test_normalize_url(self):
+        url_with_query = "https://www.juku.st/info/entry/843?param=value"
+        expected = "https://www.juku.st/info/entry/843"
+        self.assertEqual(normalize_url(url_with_query), expected)
+
+        url_without_query = "https://www.juku.st/info/entry/843"
+        self.assertEqual(normalize_url(url_without_query), url_without_query)
+
+    def test_aggregate_records(self):
+        records = [
+            {
+                'keys': ['query1', 'https://www.juku.st/info/entry/843?param=value1'],
+                'clicks': 10,
+                'impressions': 100,
+                'position': 1.5
+            },
+            {
+                'keys': ['query1', 'https://www.juku.st/info/entry/843?param=value2'],
+                'clicks': 20,
+                'impressions': 200,
+                'position': 2.0
+            },
+            {
+                'keys': ['query2', 'https://www.juku.st/info/entry/844'],
+                'clicks': 5,
+                'impressions': 50,
+                'position': 3.0
+            }
+        ]
+
+        expected = [
+            {
+                "query": "query1",
+                "url": "https://www.juku.st/info/entry/843",
+                "clicks": 30,
+                "impressions": 300,
+                "avg_position": 1.75
+            },
+            {
+                "query": "query2",
+                "url": "https://www.juku.st/info/entry/844",
+                "clicks": 5,
+                "impressions": 50,
+                "avg_position": 3.0
+            }
+        ]
+
+        result = aggregate_records(records)
+        # ソートして比較
+        self.assertEqual(sorted(result, key=lambda x: (x['query'], x['url'])),
+                         sorted(expected, key=lambda x: (x['query'], x['url'])))
+
+if __name__ == '__main__':
+    unittest.main()
 ```
 ```
 

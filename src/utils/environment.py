@@ -1,8 +1,11 @@
+# src/utils/environment.py
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, Any
 import configparser
+import logging
 
 class EnvironmentUtils:
     """プロジェクト全体で使用する環境関連のユーティリティクラス"""
@@ -105,12 +108,18 @@ class EnvironmentUtils:
         value = config.get(section, key, fallback=default)
 
         # 型変換
-        if value.isdigit():
-            return int(value)
-        if value.replace('.', '', 1).isdigit():
-            return float(value)
-        if value.lower() in ['true', 'false']:
-            return value.lower() == 'true'
+        if isinstance(default, bool):
+            return config.getboolean(section, key, fallback=default)
+        if isinstance(default, int):
+            try:
+                return int(value)
+            except ValueError:
+                return default
+        if isinstance(default, float):
+            try:
+                return float(value)
+            except ValueError:
+                return default
         return value
 
     @staticmethod
@@ -179,3 +188,157 @@ class EnvironmentUtils:
         設定がない場合はデフォルト値 'gpt-4o' を返します。
         """
         return EnvironmentUtils.get_config_value("OPENAI", "model", default="gpt-4o")
+
+class Config:
+    def __init__(self, env='development'):
+        self.env = env
+        self.logger = logging.getLogger(__name__)
+        self.base_path = Path(__file__).parent.parent.parent
+        self.config = self._load_config()
+        self._load_secrets()
+        self._setup_credentials()
+
+        # GSC設定を初期化時にロード
+        self._gsc_settings = self._load_gsc_settings()
+
+    def _load_gsc_settings(self):
+        """GSC関連の設定を初期化時に1度だけ読み込む"""
+        try:
+            settings = {
+                'url': self.config['GSC']['SITE_URL'],
+                'start_date': self.config['GSC'].get('START_DATE', '2024-11-01'),
+                'batch_size': int(self.config['GSC']['BATCH_SIZE']),
+                'metrics': self.config['GSC']['METRICS'].split(','),
+                'dimensions': self.config['GSC']['DIMENSIONS'].split(','),
+                'retry_count': int(self.config['GSC']['RETRY_COUNT']),
+                'retry_delay': int(self.config['GSC']['RETRY_DELAY']),
+                'daily_api_limit': int(self.config['GSC']['DAILY_API_LIMIT']),
+                'initial_run': self.config['GSC_INITIAL'].getboolean('INITIAL_RUN', fallback=True),
+                'initial_fetch_days': int(self.config['GSC_DAILY']['INITIAL_FETCH_DAYS']),
+                'daily_fetch_days': int(self.config['GSC_DAILY']['DAILY_FETCH_DAYS']),
+            }
+            self.logger.info(f"GSC settings loaded: {settings}")  # 初回のみログ出力
+            return settings
+        except KeyError as e:
+            self.logger.error(f"Missing key in GSC configuration: {e}")
+            raise
+        except ValueError as e:
+            self.logger.error(f"Invalid value in GSC configuration: {e}")
+            raise
+
+    @property
+    def gsc_settings(self):
+        """初期化済みの GSC 設定を返す"""
+        return self._gsc_settings
+
+    def _load_config(self):
+        """設定ファイルの読み込み"""
+        config = configparser.ConfigParser()
+        config_path = self.base_path / 'config' / 'settings.ini'
+
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+
+        try:
+            with open(config_path, 'r', encoding='utf-8-sig') as f:
+                config.read_file(f)
+            self.logger.info(f"Loaded configuration from: {config_path}")
+        except UnicodeDecodeError:
+            try:
+                with open(config_path, 'r', encoding='cp932') as f:
+                    config.read_file(f)
+                self.logger.warning(f"Loaded configuration using fallback encoding: {config_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to load configuration file: {e}")
+                raise
+
+        return config
+
+    def _load_secrets(self):
+        """環境変数ファイルの読み込み"""
+        env_path = self.base_path / 'config' / 'secrets.env'
+        if not env_path.exists():
+            raise FileNotFoundError(f"Secrets file not found: {env_path}")
+
+        try:
+            load_dotenv(env_path, encoding='utf-8')
+            self.logger.info(f"Loaded environment variables from: {env_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to load secrets file: {e}")
+            raise
+
+    def _setup_credentials(self):
+        """認証情報ファイルのパスを設定"""
+        credentials_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if not credentials_file:
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS not set in secrets.env")
+
+        credentials_path = self.base_path / 'config' / credentials_file
+        if not credentials_path.exists():
+            raise FileNotFoundError(
+                f"Credentials file not found: {credentials_path}\n"
+                f"Expected file: {credentials_file}\n"
+                f"Looking in: {self.base_path / 'config'}"
+            )
+
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(credentials_path.absolute())
+        self.logger.info(f"Google credentials set: {credentials_path}")
+        # 確認のために環境変数を追加で出力
+        self.logger.debug(f"GOOGLE_APPLICATION_CREDENTIALS is set to: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
+
+    @property
+    def log_dir(self):
+        """ログディレクトリのパスを取得"""
+        log_dir = self.base_path / 'logs'
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir
+
+    @property
+    def credentials_path(self):
+        return os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+    @property
+    def debug_mode(self):
+        """デバッグモードの有効化"""
+        try:
+            return self.config[self.env].getboolean('DEBUG')
+        except KeyError:
+            self.logger.warning("DEBUG setting not found; defaulting to False.")
+            return False
+
+    @property
+    def log_level(self):
+        """ログレベルの取得"""
+        try:
+            return self.config[self.env]['LOG_LEVEL']
+        except KeyError:
+            self.logger.warning("LOG_LEVEL setting not found; defaulting to INFO.")
+            return 'INFO'
+
+    @property
+    def progress_table_id(self):
+        """BigQuery進行状況トラッキングテーブルのIDを取得"""
+        try:
+            return (
+                f"{self.config['BIGQUERY']['PROJECT_ID']}."
+                f"{self.config['BIGQUERY']['DATASET_ID']}."
+                f"{self.config['BIGQUERY']['PROGRESS_TABLE_ID']}"
+            )
+        except KeyError as e:
+            self.logger.error(f"Missing BigQuery tracking table setting: {e}")
+            raise
+
+    def get_config_value(self, section, key, default=None):
+        """指定されたセクションとキーの設定値を取得"""
+        try:
+            return self.config.get(section, key, fallback=default)
+        except KeyError as e:
+            self.logger.error(f"Missing configuration for {section}.{key}: {e}")
+            raise
+
+    def __str__(self):
+        return f"Config(env={self.env}, base_path={self.base_path})"
+
+# グローバルインスタンスの作成
+config = Config()

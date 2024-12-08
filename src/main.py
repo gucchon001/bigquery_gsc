@@ -1,3 +1,4 @@
+#main.py
 from utils.environment import EnvironmentUtils as env
 from utils.logging_config import get_logger
 from modules.gsc_handler import process_gsc_data
@@ -26,9 +27,6 @@ def setup_configurations():
 
     return temp_value, secrets_demo, environment
 
-    # GSC データ取得処理を実行
-    process_gsc_data(config)
-
 def main() -> None:
     """メイン処理"""
     # 実行時のメッセージ
@@ -42,6 +40,11 @@ def main() -> None:
     print(f'設定ファイルの設定完了{{"demo": "{temp}"}}')
     print(f'機密情報ファイルの設定完了{{"demo": "{secrets_demo}"}}')
     print('ログ設定完了')
+
+    # GSC データ取得処理を実行
+    logger.info("process_gsc_data を呼び出します。")
+    process_gsc_data()
+    logger.info("process_gsc_data の呼び出しが完了しました。")
 
 if __name__ == "__main__":
     main()
