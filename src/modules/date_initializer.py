@@ -16,19 +16,22 @@ logger = get_logger(__name__)
 def initialize_date_range():
     """
     初回実行か毎日の実行かに応じて日付範囲を生成します。
+    処理が古い日付から開始し、さらに過去に向かって進むように設定。
     """
-    initial_run = config.get_config_value('GSC_INITIAL', 'INITIAL_RUN', default='true').lower() == 'true'
+    initial_run = config.gsc_settings['initial_run']
     if initial_run:
-        days = int(config.get_config_value('GSC_DAILY', 'INITIAL_FETCH_DAYS', default=365))
+        days = config.gsc_settings['initial_fetch_days']
         logger.info(f"初回実行: 過去{days}日分のデータを取得します。")
     else:
-        days = int(config.get_config_value('GSC_DAILY', 'DAILY_FETCH_DAYS', default=3))
+        days = config.gsc_settings['daily_fetch_days']
         logger.info(f"毎日実行: 過去{days}日分のデータを取得します。")
     
     today = get_current_jst_datetime().date()
-    start_date = today - timedelta(days=days)
     end_date = today - timedelta(days=2)  # GSCの制限により2日前まで
-    
+    start_date = end_date - timedelta(days=days - 1)  # 過去n日間
+
+    logger.debug(f"initialize_date_range: start_date={start_date}, end_date={end_date}")
+
     return start_date, end_date
 
 def get_next_date_range(config):

@@ -2,49 +2,62 @@
 # 機能要件仕様書
 
 ## 1. システム概要
-- **プログラムの全体的な目的と対象のユーザー**:
-  本プログラムは、Google Search Console（GSC）のデータを取得し、そのデータをGoogle BigQueryに挿入するためのシステムです。主なユーザーは、SEOデータの分析やレポート作成を自動化したいデータアナリストやマーケティング担当者です。
+- プログラムの全体的な目的と対象のユーザー:
+  - このプログラムは、Google Search Console（GSC）からデータを取得し、BigQueryに格納することを目的としています。これにより、データ分析やレポート生成を支援します。対象ユーザーは、データエンジニアやデータアナリストで、GSCのデータを効率的に処理して活用したいと考えている人々です。
 
 ## 2. 主要機能要件
-- **データ取得と処理**:
-  - `GSCConnector` クラスを利用して、指定された日付範囲のGSCデータを取得します。
-  - 取得したデータは、クエリやページURLごとに集計され、クリック数、インプレッション数、平均順位を計算します。
-
-- **データの保存**:
-  - 集計されたデータをGoogle BigQueryの指定されたテーブルに挿入します。
-  - 挿入時には、日付やURL、クエリ、クリック数、インプレッション数、平均順位などの情報を管理します。
-
-- **進捗管理**:
-  - `process_gsc_data` 関数で、GSCデータのフェッチ状況を追跡し、次のフェッチ開始位置を記録します。
-
-- **設定管理**:
-  - 環境変数や設定ファイル（`settings.ini`、`secrets.env`）から必要な情報を読み込み、システムの設定を初期化します。
+- 提供される各機能の説明:
+  1. **Google Search Console データ取得**:
+     - `GSCConnector`クラスを使用して、指定された日付範囲のデータをGoogle Search Consoleから取得します。
+     - APIを通じて指定されたプロパティのデータをフェッチします。
+  
+  2. **データの集計と正規化**:
+     - URLを正規化し、クエリパラメータやフラグメントを除去します。
+     - 取得したデータをクリック数、インプレッション数、平均順位で集計します。
+  
+  3. **BigQueryへのデータ挿入**:
+     - `insert_to_bigquery`メソッドを使用して、集計されたデータをBigQueryに挿入します。
+     - リトライロジックを用いて、データ挿入の信頼性を向上させます。
+  
+  4. **設定と環境の管理**:
+     - 環境変数と設定ファイル（`settings.ini`や`secrets.env`）を使用して、プログラムの動作を制御します。
+     - 環境に応じた設定のロードと適用を行います。
+  
+  5. **ログ出力とエラーハンドリング**:
+     - 詳細なログを出力し、エラーが発生した際のトラブルシューティングを支援します。
+     - 各ステップでの進捗状況やエラーを記録します。
 
 ## 3. 非機能要件
-- **パフォーマンス**:
-  - GSC APIの1日あたりのクォータに従い、効率的にデータをフェッチできるようにバッチサイズを調整しています。
-  - BigQueryへのデータ挿入はバッチ処理で行われ、効率的なデータ転送が可能です。
+- パフォーマンス:
+  - データ取得と挿入は効率的に行われ、APIのレート制限を考慮して計画されています。
+  - BigQueryへの挿入はバッチ処理で行い、リトライを通じて安定性を確保します。
 
-- **セキュリティ**:
-  - Googleサービスにアクセスするために、サービスアカウントの認証情報を使用します。これにより、APIキーのセキュリティが確保されています。
-  - `.env`ファイルや設定ファイルに機密情報を保持し、`.gitignore`でこれらをバージョン管理から除外しています。
+- セキュリティ:
+  - OAuth 2.0を使用してGoogle APIにアクセスします。認証情報は環境変数および設定ファイルで管理され、機密情報は.gitignoreで保護されます。
 
-- **可用性**:
-  - ロギング機能を備えており、エラーのトラッキングやデバッグが容易です。
-  - エラーハンドリングが実装されており、APIエラーやデータ挿入エラーに対して適切な対応を行います。
+- 可用性:
+  - 定期的なジョブの実行を前提として設計されており、エラー発生時には再試行を行います。
+
+- ロギング:
+  - ログファイルには詳細なデバッグ情報を含め、問題発生時の解析を容易にしています。
 
 ## 4. 技術要件
-- **開発環境**:
-  - Python 3.xが必要です。特に依存関係として、Google Cloud関連のライブラリ（`google-cloud-bigquery`、`google-auth`など）とOpenAI API用のライブラリが必要です。
-  - `requirements.txt` で指定されているPythonパッケージをインストールする必要があります。
+- 開発環境:
+  - Python 3.8以上
+  - Google Cloud SDKを使用したBigQueryアクセス
+  - Google API Pythonクライアントライブラリ
 
-- **システム環境**:
-  - 動作にはGoogle Cloud Platform（GCP）のプロジェクト設定と認証情報が必要です。
-  - 環境変数や設定ファイルを通じて、APIキーやその他の設定を管理します。
+- システム環境:
+  - Google Cloud Platformの利用を想定（BigQueryおよびGoogle Search Consoleへのアクセス）
 
-- **必要なライブラリ**:
-  - `google-cloud-bigquery`、`google-auth`、`google-api-python-client`、`dotenv`、`pytz`、`icecream`などが必要です。
-  - これらのライブラリは、GCPサービスとの連携やロギング、データ処理を容易にします。 
+- 必要なライブラリ:
+  - `google-cloud-bigquery`: BigQueryへのアクセス
+  - `google-auth`: Google APIへのアクセス認証
+  - `dotenv`: 環境変数の管理
+  - `icecream`: デバッグ用のログ出力
+  - `anytree`: ディレクトリ構造の可視化
+
+以上がこのプログラムの機能要件仕様です。各機能は相互に連携し、GSCからのデータ取得から分析基盤への登録までのプロセスを自動化しています。 
 
 ---
 
@@ -101,6 +114,7 @@ bigquery_gsc
 │       ├── environment.py
 │       ├── helpers.py
 │       ├── logging_config.py
+│       ├── retry.py
 │       └── url_utils.py
 └── tests
     ├── __init__.py
@@ -1015,13 +1029,36 @@ from datetime import datetime, timedelta
 from google.cloud import bigquery
 from utils.date_utils import get_current_jst_datetime  # ユーティリティ関数のインポート
 
-def initialize_date_range_past_year():
+# src/modules/date_initializer.py
+
+from datetime import datetime, timedelta
+from google.cloud import bigquery
+from utils.date_utils import get_current_jst_datetime
+from utils.environment import config
+
+from utils.logging_config import get_logger
+logger = get_logger(__name__)
+
+def initialize_date_range():
     """
-    過去1年間の日付を新しい順にリストとして生成
+    初回実行か毎日の実行かに応じて日付範囲を生成します。
+    処理が古い日付から開始し、さらに過去に向かって進むように設定。
     """
-    today = get_current_jst_datetime().date()  # 現在の日本時間を使用
-    one_year_ago = today - timedelta(days=365)  # 過去1年分を対象
-    return [today - timedelta(days=i) for i in range((today - one_year_ago).days + 1)]
+    initial_run = config.gsc_settings['initial_run']
+    if initial_run:
+        days = config.gsc_settings['initial_fetch_days']
+        logger.info(f"初回実行: 過去{days}日分のデータを取得します。")
+    else:
+        days = config.gsc_settings['daily_fetch_days']
+        logger.info(f"毎日実行: 過去{days}日分のデータを取得します。")
+    
+    today = get_current_jst_datetime().date()
+    end_date = today - timedelta(days=2)  # GSCの制限により2日前まで
+    start_date = end_date - timedelta(days=days - 1)  # 過去n日間
+
+    logger.debug(f"initialize_date_range: start_date={start_date}, end_date={end_date}")
+
+    return start_date, end_date
 
 def get_next_date_range(config):
     """
@@ -1073,15 +1110,17 @@ File: src\modules\gsc_fetcher.py
 ================================================================================
 
 # src/modules/gsc_fetcher.py
+
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import bigquery
-from utils.logging_config import get_logger
 from utils.date_utils import get_current_jst_datetime, format_datetime_jst
 from utils.url_utils import aggregate_records
 from datetime import datetime
+from utils.retry import insert_rows_with_retry
 
+from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 class GSCConnector:
@@ -1178,8 +1217,8 @@ class GSCConnector:
 
         # 挿入先のテーブルIDを取得
         table_id = f"{self.config.get_config_value('BIGQUERY', 'PROJECT_ID')}." \
-                f"{self.config.get_config_value('BIGQUERY', 'DATASET_ID')}." \
-                f"{self.config.get_config_value('BIGQUERY', 'TABLE_ID')}"
+                   f"{self.config.get_config_value('BIGQUERY', 'DATASET_ID')}." \
+                   f"{self.config.get_config_value('BIGQUERY', 'TABLE_ID')}"
 
         # データの整形
         rows_to_insert = []
@@ -1190,34 +1229,17 @@ class GSCConnector:
                 "query": record['query'],
                 "impressions": record['impressions'],
                 "clicks": record['clicks'],
-                "avg_position": record['avg_position'],  # 修正: sum_top_position から avg_position に変更
+                "avg_position": record['avg_position'],  # フィールド名を統一
                 "insert_time_japan": format_datetime_jst(get_current_jst_datetime())  # DATETIME 型
             }
             rows_to_insert.append(row_data)
 
-        # データを挿入
-        errors = client.insert_rows_json(table_id, rows_to_insert)
-        if errors:
-            for error in errors:
-                for err in error.get('errors', []):
-                    location = err.get('location', 'unknown')
-                    message = err.get('message', 'No message provided.')
-                    self.logger.error(f"Error inserting row {error.get('index', 'unknown')}: {location} - {message}")
-            raise RuntimeError("BigQuery insertion encountered errors.")
-        else:
-            self.logger.info(f"BigQuery に {len(rows_to_insert)} 件のデータを挿入しました。")
-
-        # データを挿入
-        errors = client.insert_rows_json(table_id, rows_to_insert)
-        if errors:
-            for error in errors:
-                for err in error.get('errors', []):
-                    location = err.get('location', 'unknown')
-                    message = err.get('message', 'No message provided.')
-                    self.logger.error(f"Error inserting row {error.get('index', 'unknown')}: {location} - {message}")
-            raise RuntimeError("BigQuery insertion encountered errors.")
-        else:
-            self.logger.info(f"BigQuery に {len(rows_to_insert)} 件のデータを挿入しました。")
+        # リトライロジック付きで挿入
+        try:
+            insert_rows_with_retry(client, table_id, rows_to_insert, self.logger)
+        except Exception as e:
+            self.logger.error(f"BigQueryへの挿入が失敗しました: {e}", exc_info=True)
+            raise
 
     def fetch_and_insert_gsc_data(self, start_date=None, end_date=None):
         """
@@ -1265,25 +1287,26 @@ File: src\modules\gsc_handler.py
 ================================================================================
 
 # src/modules/gsc_handler.py
+
 from datetime import datetime, timedelta
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
 from modules.gsc_fetcher import GSCConnector
-from modules.date_initializer import get_date_range_for_fetch
-from utils.logging_config import get_logger
+from modules.date_initializer import initialize_date_range
 from utils.environment import config
 from utils.date_utils import get_current_jst_datetime, format_datetime_jst
+from utils.retry import insert_rows_with_retry
 
-# 名前付きロガーを取得
+from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 def process_gsc_data():
     """GSC データを取得し、BigQuery に保存するメイン処理"""
     logger.info("process_gsc_data が呼び出されました。")
 
-    # 取得する日付範囲を設定
-    start_date, end_date = get_date_range_for_fetch("2024-12-07", "2023-01-01")
+    # 取得する日付範囲を設定（古い日付から開始し、さらに過去に向かって進む）
+    start_date, end_date = initialize_date_range()
     logger.info(f"Processing GSC data for date range: {start_date} to {end_date}")
 
     # GSCConnector に Config を渡す
@@ -1291,7 +1314,7 @@ def process_gsc_data():
     logger.info("GSCConnector を初期化しました。")
 
     # GSC APIの1日あたりのクォータを設定
-    daily_api_limit = int(config.get_config_value('GSC', 'DAILY_API_LIMIT'))
+    daily_api_limit = config.gsc_settings['daily_api_limit']
     processed_count = 0
 
     # 前回の処理位置を取得
@@ -1301,13 +1324,16 @@ def process_gsc_data():
     else:
         logger.info("No previous processing position found.")
 
-    current_date = last_position["date"] if last_position else start_date
+    # 処理開始日を設定
+    current_date = last_position["date"] if last_position else end_date
     start_record = last_position["record"] if last_position else 0
 
-    while current_date >= end_date and processed_count < daily_api_limit:
+    while current_date >= start_date and processed_count < daily_api_limit:
         try:
             remaining_quota = daily_api_limit - processed_count
-            fetch_limit = 25000  # 各API呼び出しで最大レコード数を取得
+            fetch_limit = config.gsc_settings['batch_size']  # 既に int として取得
+
+            logger.debug(f"fetch_limit type: {type(fetch_limit)}, value: {fetch_limit}")
 
             logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
             records, next_record = gsc_connector.fetch_records(
@@ -1322,7 +1348,7 @@ def process_gsc_data():
                 logger.info(f"Inserted {len(records)} records into BigQuery.")
                 processed_count += 1  # API呼び出し回数をカウント
 
-                # 進捗保存
+                # 進捗保存（アップサート）
                 save_processing_position(config, {
                     "date": current_date,
                     "record": next_record,
@@ -1351,31 +1377,83 @@ def process_gsc_data():
 
     logger.info(f"Processed {processed_count} API calls in total")
 
+'''''
+    # 初回実行後にフラグを更新
+    initial_run = config.gsc_settings['initial_run']
+    if initial_run and not last_position:
+        # 初回実行が完了したらフラグをfalseに設定
+        update_initial_run_flag(config, False)
+        logger.info("初回実行が完了しました。INITIAL_RUNフラグをfalseに更新しました。")
+'''''
+
+def update_initial_run_flag(config, flag: bool):
+    """
+    settings.iniのINITIAL_RUNフラグを更新します。
+
+    Args:
+        config: Config クラスのインスタンス
+        flag (bool): フラグの新しい値
+    """
+    import configparser
+
+    settings_path = config.get_config_file('settings.ini')
+    parser = configparser.ConfigParser()
+    parser.read(settings_path, encoding='utf-8')
+
+    if 'GSC_INITIAL' not in parser.sections():
+        parser.add_section('GSC_INITIAL')
+
+    parser.set('GSC_INITIAL', 'INITIAL_RUN', str(flag).lower())
+
+    with open(settings_path, 'w', encoding='utf-8') as configfile:
+        parser.write(configfile)
+
+    logger.info(f"settings.ini の INITIAL_RUN を {flag} に更新しました。")
+
 def save_processing_position(config, position):
-    """処理位置を保存"""
-    # 認証情報を明示的に渡す
+    """処理位置を保存（アップサート操作）"""
     credentials_path = config.credentials_path
     credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
     client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
     table_id = config.progress_table_id
 
-    # 現在の日本時間を取得し、タイムゾーン情報を除去
-    updated_at_jst = format_datetime_jst(get_current_jst_datetime())  # JSTを設定
-    logger.debug(f"Updated_at (JST): {updated_at_jst}")  # デバッグログ追加
+    updated_at_jst = format_datetime_jst(get_current_jst_datetime())
 
-    rows_to_insert = [{
-        "data_date": str(position["date"]),
-        "record_position": position["record"],
-        "is_date_completed": position["is_date_completed"],
-        "updated_at": updated_at_jst  # DATETIME 型に適した形式
-    }]
+    data_date = str(position["date"])
+    record_position = position["record"]
+    is_date_completed = position["is_date_completed"]
 
-    errors = client.insert_rows_json(table_id, rows_to_insert)
-    if errors:
-        logger.error(f"Failed to save processing position for {position['date']}: {errors}")
-        raise RuntimeError(f"Failed to save processing position: {errors}")
-    else:
-        logger.info(f"Progress updated for {position['date']} with record position: {position['record']}")
+    # MERGE ステートメントを使用してアップサートを実行
+    merge_query = f"""
+        MERGE `{table_id}` T
+        USING (SELECT @data_date AS data_date) S
+        ON T.data_date = S.data_date
+        WHEN MATCHED THEN
+            UPDATE SET 
+                record_position = @record_position,
+                is_date_completed = @is_date_completed,
+                updated_at = @updated_at
+        WHEN NOT MATCHED THEN
+            INSERT (data_date, record_position, is_date_completed, updated_at)
+            VALUES (@data_date, @record_position, @is_date_completed, @updated_at)
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("data_date", "DATE", data_date),
+            bigquery.ScalarQueryParameter("record_position", "INT64", record_position),
+            bigquery.ScalarQueryParameter("is_date_completed", "BOOL", is_date_completed),
+            bigquery.ScalarQueryParameter("updated_at", "DATETIME", updated_at_jst)
+        ]
+    )
+
+    try:
+        query_job = client.query(merge_query, job_config=job_config)
+        query_job.result()  # 完了まで待機
+        logger.info(f"Progress updated for date {data_date}.")
+    except Exception as e:
+        logger.error(f"Failed to save processing position for {data_date}: {e}", exc_info=True)
+        raise
 
 def get_last_processed_position(config):
     """最後に処理したポジションを取得"""
@@ -1447,6 +1525,8 @@ def format_datetime_jst(jst_datetime, fmt="%Y-%m-%d %H:%M:%S"):
 ================================================================================
 File: src\utils\environment.py
 ================================================================================
+
+# src/utils/environment.py
 
 import os
 from pathlib import Path
@@ -1556,12 +1636,18 @@ class EnvironmentUtils:
         value = config.get(section, key, fallback=default)
 
         # 型変換
-        if value.isdigit():
-            return int(value)
-        if value.replace('.', '', 1).isdigit():
-            return float(value)
-        if value.lower() in ['true', 'false']:
-            return value.lower() == 'true'
+        if isinstance(default, bool):
+            return config.getboolean(section, key, fallback=default)
+        if isinstance(default, int):
+            try:
+                return int(value)
+            except ValueError:
+                return default
+        if isinstance(default, float):
+            try:
+                return float(value)
+            except ValueError:
+                return default
         return value
 
     @staticmethod
@@ -1654,6 +1740,10 @@ class Config:
                 'dimensions': self.config['GSC']['DIMENSIONS'].split(','),
                 'retry_count': int(self.config['GSC']['RETRY_COUNT']),
                 'retry_delay': int(self.config['GSC']['RETRY_DELAY']),
+                'daily_api_limit': int(self.config['GSC']['DAILY_API_LIMIT']),
+                'initial_run': self.config['GSC_INITIAL'].getboolean('INITIAL_RUN', fallback=True),
+                'initial_fetch_days': int(self.config['GSC_DAILY']['INITIAL_FETCH_DAYS']),
+                'daily_fetch_days': int(self.config['GSC_DAILY']['DAILY_FETCH_DAYS']),
             }
             self.logger.info(f"GSC settings loaded: {settings}")  # 初回のみログ出力
             return settings
@@ -1767,10 +1857,10 @@ class Config:
             self.logger.error(f"Missing BigQuery tracking table setting: {e}")
             raise
 
-    def get_config_value(self, section, key):
+    def get_config_value(self, section, key, default=None):
         """指定されたセクションとキーの設定値を取得"""
         try:
-            return self.config[section][key]
+            return self.config.get(section, key, fallback=default)
         except KeyError as e:
             self.logger.error(f"Missing configuration for {section}.{key}: {e}")
             raise
@@ -1780,6 +1870,7 @@ class Config:
 
 # グローバルインスタンスの作成
 config = Config()
+
 
 ================================================================================
 File: src\utils\helpers.py
@@ -1854,6 +1945,59 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     LoggingConfig()
     return logging.getLogger(name)
+
+================================================================================
+File: src\utils\retry.py
+================================================================================
+
+# src/utils.py
+
+import time
+from google.auth.exceptions import RefreshError
+from google.cloud import bigquery
+import logging
+
+def insert_rows_with_retry(client: bigquery.Client, table_id: str, rows_to_insert: list, logger: logging.Logger,
+                           max_retries: int = 5, retry_delay: int = 10) -> None:
+    """
+    BigQueryへのデータ挿入をリトライロジック付きで実行します。
+
+    Args:
+        client (bigquery.Client): BigQuery クライアント
+        table_id (str): 挿入先のテーブルID
+        rows_to_insert (list): 挿入する行データのリスト
+        logger (logging.Logger): ロガー
+        max_retries (int): 最大リトライ回数
+        retry_delay (int): リトライ間の待機時間（秒）
+
+    Raises:
+        Exception: 最大リトライ回数に達した場合
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            errors = client.insert_rows_json(table_id, rows_to_insert)
+            if not errors:
+                logger.info(f"Successfully inserted {len(rows_to_insert)} rows into {table_id}.")
+                return
+            else:
+                logger.error(f"BigQuery insertion errors (Attempt {attempt}): {errors}")
+                if attempt < max_retries:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+        except RefreshError as e:
+            logger.error(f"Authentication error occurred (Attempt {attempt}): {e}")
+            if attempt < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+        except Exception as e:
+            logger.error(f"Unexpected error during BigQuery insertion (Attempt {attempt}): {e}")
+            if attempt < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+    else:
+        logger.critical(f"Failed to insert rows into {table_id} after {max_retries} attempts.")
+        raise Exception("BigQuery insertion failed after maximum retries.")
+
 
 ================================================================================
 File: src\utils\url_utils.py
