@@ -216,6 +216,7 @@ class Config:
                 'initial_run': self.config['GSC_INITIAL'].getboolean('INITIAL_RUN', fallback=True),
                 'initial_fetch_days': int(self.config['GSC_DAILY']['INITIAL_FETCH_DAYS']),
                 'daily_fetch_days': int(self.config['GSC_DAILY']['DAILY_FETCH_DAYS']),
+                'project_id': self.config['BIGQUERY']['PROJECT_ID'],
             }
             self.logger.info(f"GSC settings loaded: {settings}")  # 初回のみログ出力
             return settings
@@ -336,6 +337,21 @@ class Config:
         except KeyError as e:
             self.logger.error(f"Missing configuration for {section}.{key}: {e}")
             raise
+
+    def get_config_file(self, file_name: str = "settings.ini") -> Path:
+        """
+        設定ファイルのパスを取得します。
+
+        Args:
+            file_name (str): 設定ファイル名
+
+        Returns:
+            Path: 設定ファイルのパス
+
+        Raises:
+            FileNotFoundError: 指定された設定ファイルが見つからない場合
+        """
+        return EnvironmentUtils.get_config_file(file_name)
 
     def __str__(self):
         return f"Config(env={self.env}, base_path={self.base_path})"

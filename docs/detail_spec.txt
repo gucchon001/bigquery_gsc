@@ -1,12 +1,8 @@
 # プログラム仕様書
 
-この仕様書は、指定されたプロジェクトのフォルダ構造、ファイルの役割、クラスと関数の詳細仕様、データフローについて説明します。
-
----
-
 ## 1. フォルダ構造の解析
 
-### フォルダ構造
+以下はプロジェクトのフォルダ構造です。各フォルダとファイルの種類も示しています。
 
 ```
 bigquery_gsc/
@@ -14,270 +10,258 @@ bigquery_gsc/
 ├── .req_hash
 ├── README.md
 ├── config/
-│   ├── boxwood-dynamo-384411-6dec80faabfc.json
-│   ├── gcp4-441506-56861cb0311a.json
-│   ├── gcp4-441506-affe38a981c3.json
-│   ├── secrets.env
-│   └── settings.ini
-├── data/
+│   ├── boxwood-dynamo-384411-6dec80faabfc.json (設定ファイル)
+│   ├── gcp4-441506-56861cb0311a.json (設定ファイル)
+│   ├── gcp4-441506-affe38a981c3.json (設定ファイル)
+│   ├── secrets.env (設定ファイル)
+│   └── settings.ini (設定ファイル)
+├── data/ (データフォルダ)
 ├── docs/
 │   ├── .gitkeep
-│   ├── detail_spec.txt
-│   ├── merge.txt
-│   └── requirements_spec.txt
+│   ├── detail_spec.txt (ドキュメント)
+│   ├── merge.txt (ドキュメント)
+│   └── requirements_spec.txt (ドキュメント)
 ├── logs/
 │   ├── .gitkeep
-│   └── app_20241207.log.2024-12-07
-├── requirements.txt
-├── run.bat
-├── run_dev.bat
+│   └── app_20241207.log.2024-12-07 (ログファイル)
+├── requirements.txt (設定ファイル)
+├── run.bat (その他)
+├── run_dev.bat (その他)
 ├── spec_tools/
-│   ├── generate_detailed_spec.py
-│   ├── generate_spec.py
+│   ├── generate_detailed_spec.py (Pythonコード)
+│   ├── generate_spec.py (Pythonコード)
 │   ├── logs/
 │   │   └── .gitkeep
-│   ├── merge_files.py
+│   ├── merge_files.py (Pythonコード)
 │   ├── prompt/
-│   │   ├── README_tmp.md
-│   │   ├── prompt_generate_detailed_spec.txt
-│   │   └── prompt_requirements_spec.txt
-│   └── utils.py
-├── spec_tools_run.bat
+│   │   ├── README_tmp.md (ドキュメント)
+│   │   ├── prompt_generate_detailed_spec.txt (ドキュメント)
+│   │   └── prompt_requirements_spec.txt (ドキュメント)
+│   └── utils.py (Pythonコード)
+├── spec_tools_run.bat (その他)
 ├── src/
-│   ├── __init__.py
-│   ├── main.py
+│   ├── __init__.py (Pythonコード)
+│   ├── main.py (Pythonコード)
 │   ├── modules/
-│   │   ├── __init__.py
-│   │   ├── date_initializer.py
-│   │   ├── gsc_fetcher.py
-│   │   └── gsc_handler.py
+│   │   ├── __init__.py (Pythonコード)
+│   │   ├── date_initializer.py (Pythonコード)
+│   │   ├── gsc_fetcher.py (Pythonコード)
+│   │   └── gsc_handler.py (Pythonコード)
 │   └── utils/
-│       ├── __init__.py
-│       ├── date_utils.py
-│       ├── environment.py
-│       ├── helpers.py
-│       ├── logging_config.py
-│       ├── retry.py
-│       └── url_utils.py
+│       ├── __init__.py (Pythonコード)
+│       ├── date_utils.py (Pythonコード)
+│       ├── environment.py (Pythonコード)
+│       ├── helpers.py (Pythonコード)
+│       ├── logging_config.py (Pythonコード)
+│       ├── retry.py (Pythonコード)
+│       └── url_utils.py (Pythonコード)
 └── tests/
-    ├── __init__.py
-    └── test_url_utils.py
+    ├── __init__.py (Pythonコード)
+    └── test_url_utils.py (Pythonコード)
 ```
 
-### ファイルの種類と数
-
-- **Pythonコードファイル**: 15
-- **設定ファイル**: 5
-- **その他のファイル**: 10
+- **ファイル数**: 33
 - **フォルダ数**: 10
-
----
 
 ## 2. ファイルごとの役割と依存関係
 
-| ファイル名                        | 役割                                                                 | 依存関係                                                      |
-|-----------------------------------|----------------------------------------------------------------------|---------------------------------------------------------------|
-| `generate_detailed_spec.py`       | 詳細な仕様書を生成する。                                             | `utils.py`, `OpenAIConfig`, `dotenv`                          |
-| `generate_spec.py`                | 仕様書を生成する。                                                   | `utils.py`, `OpenAIConfig`, `dotenv`, `logging`               |
-| `merge_files.py`                  | 複数のPythonファイルをマージし、出力ファイルを生成。                 | `utils.py`, `logging`                                         |
-| `utils.py`                        | ユーティリティ関数を提供。                                           | `logging`, `configparser`, `OpenAI`                           |
-| `main.py`                         | メイン処理のエントリーポイント。                                     | `utils/environment.py`, `utils/logging_config.py`, `modules`  |
-| `date_initializer.py`             | 日付範囲を初期化し、次のデータ範囲を決定。                           | `google.cloud.bigquery`, `utils/date_utils.py`, `utils/environment.py` |
-| `gsc_fetcher.py`                  | Google Search Console データを取得し、BigQueryに挿入。              | `google.oauth2.service_account`, `googleapiclient`, `utils`   |
-| `gsc_handler.py`                  | GSC データを処理し、BigQuery に保存する。                            | `bigquery`, `gsc_fetcher`, `date_initializer`, `utils`        |
-| `date_utils.py`                   | 日付関連のユーティリティ関数を提供。                                 | `pytz`, `datetime`                                            |
-| `environment.py`                  | 環境変数や設定ファイルの管理を行う。                                 | `dotenv`, `configparser`, `os`                                |
-| `logging_config.py`               | ログ設定を行う。                                                     | `logging`, `datetime`                                         |
-| `retry.py`                        | BigQueryへのデータ挿入をリトライするロジックを提供。                 | `time`, `bigquery`, `logging`                                 |
-| `url_utils.py`                    | URLの正規化と集計を行う。                                            | `urllib.parse`, `collections`                                 |
+以下はプロジェクト内の各ファイルの役割と依存関係です。
 
----
+| ファイル名                              | 役割                                                                                   | 依存関係                                                                                      |
+|-----------------------------------------|----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `generate_detailed_spec.py`             | 仕様書を生成するためのプログラム                                                        | `utils.py`, `dotenv`, `OpenAIConfig`                                                          |
+| `generate_spec.py`                      | 仕様書を生成し、READMEを更新するプログラム                                              | `utils.py`, `dotenv`, `OpenAIConfig`, `pathlib`, `datetime`                                   |
+| `merge_files.py`                        | Pythonファイルをマージし、フォルダ構造を生成するプログラム                               | `utils.py`, `argparse`, `logging`                                                             |
+| `utils.py`                              | 各種ユーティリティ関数を提供                                                            | `os`, `logging`, `configparser`, `OpenAI`                                                     |
+| `main.py`                               | メイン処理のエントリーポイント                                                          | `utils/environment.py`, `utils/logging_config.py`, `modules/gsc_handler.py`                  |
+| `date_initializer.py`                   | 日付範囲を初期化する関数を提供                                                          | `datetime`, `bigquery`, `utils/date_utils.py`, `utils/environment.py`                          |
+| `gsc_fetcher.py`                        | Google Search Consoleデータを取得し、BigQueryに挿入するためのクラスと関数               | `google.oauth2`, `googleapiclient`, `bigquery`, `utils/date_utils.py`, `utils/url_utils.py`   |
+| `gsc_handler.py`                        | GSCデータの処理を行うメインロジック                                                     | `datetime`, `bigquery`, `gsc_fetcher.py`, `date_initializer.py`, `utils/environment.py`       |
+| `date_utils.py`                         | 日付関連のユーティリティ関数を提供                                                      | `datetime`, `pytz`                                                                            |
+| `environment.py`                        | 環境変数と設定ファイルの管理を行うユーティリティクラス                                  | `os`, `dotenv`, `configparser`                                                                |
+| `logging_config.py`                     | ログの設定を行うユーティリティ関数を提供                                                | `logging`, `datetime`, `pathlib`                                                              |
+| `retry.py`                              | BigQueryにデータを挿入する際のリトライロジックを提供                                    | `time`, `bigquery`, `logging`                                                                 |
+| `url_utils.py`                          | URLの正規化とレコードの集計を行う関数を提供                                             | `urllib.parse`, `collections`                                                                 |
+| `test_url_utils.py`                     | `url_utils`モジュールのテストを実行                                                     | `unittest`, `url_utils.py`                                                                    |
 
 ## 3. クラス定義の詳細
 
-### `SpecificationGenerator` (in `generate_detailed_spec.py` and `generate_spec.py`)
+### spec_tools/generate_detailed_spec.py
 
-- **概要**: 仕様書生成を管理するクラス。
+#### SpecificationGenerator
+
+- **概要**: 仕様書生成を管理するクラス
 - **属性**:
-  - `ai_config`: `OpenAIConfig` - AI関連の設定を管理。
-  - `source_dir`: `str` - ソースディレクトリ。
-  - `document_dir`: `str` - ドキュメントディレクトリ。
-  - `prompt_file`: `str` - プロンプトファイルのパス。
-- **メソッド**
-  - `__init__`: クラスを初期化。
-  - `generate`: 仕様書を生成してファイルに保存。
-  - `_read_merge_file`: `merge.txt` ファイルの内容を読み込む。
-  - `_read_prompt_file`: プロンプトファイルを読み込む。
-- **依存関係**: `OpenAIConfig`, `read_file_safely`, `write_file_content`
+  - `ai_config`: `OpenAIConfig` - AI関連の設定を管理
+  - `source_dir`: `str` - ソースディレクトリのパス
+  - `document_dir`: `str` - ドキュメントディレクトリのパス
+  - `prompt_file`: `str` - プロンプトファイルのパス
+- **メソッド**:
+  - `__init__`: 設定を読み込んで初期化
+  - `generate`: 仕様書を生成してファイルに保存
+  - `_read_merge_file`: `merge.txt`ファイルの内容を読み込む
+  - `_read_prompt_file`: プロンプトファイルを読み込む
+- **依存関係**: `OpenAIConfig`, `os`, `dotenv`, `utils.py`
 
-### `PythonFileMerger` (in `merge_files.py`)
+### spec_tools/utils.py
 
-- **概要**: Pythonファイルをマージするクラス。
+#### OpenAIConfig
+
+- **概要**: OpenAI設定を管理するクラス
 - **属性**:
-  - `settings`: `dict` - 設定情報。
-  - `project_dir`: `str` - プロジェクトディレクトリ。
-  - `output_dir`: `str` - 出力ディレクトリ。
-  - `output_filename`: `str` - 出力ファイル名。
-- **メソッド**
-  - `__init__`: クラスを初期化。
-  - `_generate_tree_structure`: ディレクトリ構造を生成。
-  - `_collect_python_files`: Pythonファイルを収集。
-  - `_merge_files_content`: ファイルの内容をマージ。
-  - `_write_output`: マージされた内容を出力ファイルに書き込む。
-  - `process`: ファイルマージ処理を実行。
-- **依存関係**: `setup_logger`, `read_settings`, `get_python_files`, `read_file_safely`, `write_file_content`
-
-### `GSCConnector` (in `gsc_fetcher.py`)
-
-- **概要**: Google Search Console データを取得するクラス。
-- **属性**:
-  - `config`: `Config` - Configクラスのインスタンス。
-  - `service`: GSC API クライアント。
-- **メソッド**
-  - `__init__`: クラスを初期化。
-  - `fetch_records`: 指定された日付のGSCデータをフェッチ。
-  - `insert_to_bigquery`: 取得したGSCデータをBigQueryに挿入。
-  - `fetch_and_insert_gsc_data`: 指定された期間のGSCデータを取得し、BigQueryに挿入。
-- **依存関係**: `service_account.Credentials`, `googleapiclient`, `bigquery`
-
----
+  - `api_key`: `str` - OpenAI APIキー
+  - `model`: `str` - 使用するモデル名
+  - `temperature`: `float` - モデルの温度設定
+  - `client`: `OpenAI` - OpenAIクライアント
+- **メソッド**:
+  - `__init__`: 初期化
+  - `get_response`: AI応答を取得
+- **依存関係**: `openai`, `os`
 
 ## 4. 各ファイル内の関数リスト
 
-### ファイル名: `src/main.py`
+### generate_detailed_spec.py
 
-- `setup_configurations`: 設定ファイルと機密情報をロードしてデータを取得します。
-- `main`: メイン処理のエントリーポイント。
+- `generate_detailed_specification`: 詳細仕様書を生成する。
 
-### ファイル名: `src/modules/date_initializer.py`
+### generate_spec.py
 
-- `initialize_date_range`: 日付範囲を初期化。
-- `get_next_date_range`: BigQueryの進捗状況を元に次のデータ範囲を決定。
-- `get_date_range_for_fetch`: 開始日と終了日を指定された日付で設定。
+- `generate_specification`: 仕様書を生成する。
 
-### ファイル名: `src/modules/gsc_fetcher.py`
+### merge_files.py
 
-- `fetch_records`: 指定された日付のGSCデータをフェッチします。
-- `insert_to_bigquery`: 取得したGSCデータをBigQueryに挿入します。
-- `fetch_and_insert_gsc_data`: 指定された期間のGSCデータを取得し、BigQueryに挿入します。
+- `merge_py_files`: マージ処理のエントリーポイント。
+- `parse_arguments`: コマンドライン引数を解析する。
+- `main`: メインプロセスを実行する。
 
-### ファイル名: `src/modules/gsc_handler.py`
+### utils.py
 
-- `process_gsc_data`: GSC データを取得し、BigQuery に保存するメイン処理。
-- `update_initial_run_flag`: settings.iniのINITIAL_RUNフラグを更新します。
-- `save_processing_position`: 処理位置を保存（アップサート操作）。
-- `get_last_processed_position`: 最後に処理したポジションを取得。
+- `normalize_path`: パスを正規化する。
+- `read_settings`: 設定ファイルを読み込む。
+- `read_file_safely`: ファイルを安全に読み込む。
+- `write_file_content`: ファイルに内容を書き込む。
+- `get_python_files`: 指定ディレクトリ配下のPythonファイルを取得。
+- `setup_logger`: ロガーをセットアップする。
+- `ensure_directories_exist`: 指定されたディレクトリが存在しない場合は作成する。
+- `initialize_openai_client`: OpenAIクライアントを初期化する。
+- `generate_tree_structure`: ディレクトリ構造をツリー形式で生成する。
+- `update_readme`: README.mdをテンプレートから更新する。
+- `get_ai_response`: OpenAI APIを使用してAI応答を生成する。
 
-### ファイル名: `src/utils/date_utils.py`
+### main.py
 
-- `get_current_jst_datetime`: 現在の日本時間（JST）を取得。
-- `format_datetime_jst`: JSTのdatetimeオブジェクトを指定されたフォーマットで文字列に変換。
+- `setup_configurations`: 設定ファイルと機密情報をロードする。
+- `main`: メイン処理。
 
-### ファイル名: `src/utils/environment.py`
+### date_initializer.py
 
-- `set_project_root`: プロジェクトのルートディレクトリを設定。
-- `get_project_root`: プロジェクトのルートディレクトリを取得。
-- `load_env`: 環境変数を .env ファイルからロード。
-- `get_env_var`: 環境変数を取得。
-- `get_config_file`: 設定ファイルのパスを取得。
-- `get_config_value`: 設定ファイルから指定の設定値を取得。
-- `resolve_path`: 指定されたパスを絶対パスに変換。
-- `get_service_account_file`: サービスアカウントファイルのパスを取得。
-- `get_environment`: 環境変数 APP_ENV を取得。
-- `get_openai_api_key`: OpenAI APIキーを取得。
-- `get_openai_model`: OpenAI モデル名を取得。
+- `initialize_date_range`: 初回実行か毎日の実行かに応じて日付範囲を生成する。
+- `get_next_date_range`: BigQueryの進捗状況を元に、次のデータ範囲を決定する。
+- `get_date_range_for_fetch`: 開始日と終了日を指定された日付で設定する。
 
-### ファイル名: `src/utils/logging_config.py`
+### gsc_fetcher.py
 
-- `setup_logging`: ロギング設定をセットアップ。
-- `get_logger`: 名前付きロガーを取得。
+- `fetch_records`: 指定された日付のGSCデータをフェッチする。
+- `insert_to_bigquery`: 取得したGSCデータをBigQueryに挿入する。
+- `fetch_and_insert_gsc_data`: 指定された期間のGSCデータを取得し、BigQueryに挿入する。
+- `_handle_error`: エラーハンドリングを統一する。
+- `_get_bigquery_credentials`: BigQuery用の認証情報を取得する。
+- `_bq_schema`: BigQueryテーブルのスキーマを定義する。
 
-### ファイル名: `src/utils/retry.py`
+### gsc_handler.py
 
-- `insert_rows_with_retry`: BigQueryへのデータ挿入をリトライロジック付きで実行。
+- `process_gsc_data`: GSCデータを取得し、BigQueryに保存するメイン処理。
+- `update_initial_run_flag`: settings.iniのINITIAL_RUNフラグを更新する。
+- `save_processing_position`: 処理位置を保存する。
+- `get_last_processed_position`: 最後に処理したポジションを取得する。
 
-### ファイル名: `src/utils/url_utils.py`
+### date_utils.py
 
-- `normalize_url`: URLからクエリパラメータとフラグメント識別子を除去。
-- `aggregate_records`: レコードをURLでグルーピングし、集計。
+- `get_current_jst_datetime`: 現在の日本時間を取得する。
+- `format_datetime_jst`: JSTのdatetimeオブジェクトを指定されたフォーマットで文字列に変換する。
 
----
+### environment.py
+
+- `set_project_root`: プロジェクトのルートディレクトリを設定する。
+- `get_project_root`: プロジェクトのルートディレクトリを取得する。
+- `load_env`: 環境変数を.envファイルからロードする。
+- `get_env_var`: 環境変数を取得する。
+- `get_config_file`: 設定ファイルのパスを取得する。
+- `get_config_value`: 設定ファイルから指定のセクションとキーの値を取得する。
+- `resolve_path`: 指定されたパスをプロジェクトルートに基づいて絶対パスに変換する。
+- `get_service_account_file`: サービスアカウントファイルのパスを取得する。
+- `get_environment`: 環境変数APP_ENVを取得する。
+- `get_openai_api_key`: OpenAI APIキーを取得する。
+- `get_openai_model`: OpenAIモデル名を取得する。
+
+### logging_config.py
+
+- `setup_logging`: ロギング設定をセットアップする。
+- `get_logger`: 名前付きロガーを取得する。
+
+### retry.py
+
+- `insert_rows_with_retry`: BigQueryへのデータ挿入をリトライロジック付きで実行する。
+
+### url_utils.py
+
+- `normalize_url`: URLからクエリパラメータとフラグメント識別子を除去する。
+- `aggregate_records`: レコードをURLでグルーピングし、クリック数、インプレッション数、平均順位を集計する。
 
 ## 5. 関数ごとの詳細仕様
 
-### 関数名: setup_configurations
-- **概要**: 設定ファイルと機密情報をロードし、データを取得します。
-- **入力**: なし
-- **出力**: `tuple` - (temp_value, secrets_demo, environment)
-- **内部処理**:
-  - 環境変数をロード。
-  - settings.ini から値を取得。
-  - secrets.env から値を取得。
-  - 現在の環境を取得。
-- **依存関係**: `env`モジュール
+### generate_detailed_specification
 
-### 関数名: main
-- **概要**: メイン処理のエントリーポイント。
+- **概要**: 詳細仕様書を生成する。
 - **入力**: なし
 - **出力**: なし
 - **内部処理**:
-  - 実行時のメッセージを表示。
-  - 設定値と秘密情報をロード。
-  - GSCデータ取得処理を実行。
-- **依存関係**: `setup_configurations`, `process_gsc_data`
+  1. `SpecificationGenerator`のインスタンスを作成。
+  2. `generate`メソッドを呼び出して仕様書を生成。
+  3. 出力ファイルが生成されたか確認し、ログを記録。
+- **依存関係**: `SpecificationGenerator`
 
-### 関数名: initialize_date_range
-- **概要**: 初回実行か毎日の実行かに応じて日付範囲を生成します。
+### generate_specification
+
+- **概要**: 仕様書を生成する。
 - **入力**: なし
-- **出力**: `tuple` - (start_date, end_date)
+- **出力**: なし
 - **内部処理**:
-  - 初回実行フラグに基づき、過去の日付範囲を設定。
-  - 今日の日付を取得し、2日前までを終了日と設定。
-- **依存関係**: `config`, `get_current_jst_datetime`
+  1. `SpecificationGenerator`のインスタンスを作成。
+  2. `generate`メソッドを呼び出して仕様書を生成。
+  3. 出力ファイルが生成されたか確認し、ログを記録。
+- **依存関係**: `SpecificationGenerator`
 
-### 関数名: fetch_records
-- **概要**: 指定された日付のGSCデータをフェッチします。
+### insert_rows_with_retry
+
+- **概要**: BigQueryへのデータ挿入をリトライロジック付きで実行する。
 - **入力**:
-  - `date` (str): データ取得対象の日付。
-  - `start_record` (int): 取得開始位置。
-  - `limit` (int): 取得するレコード数。
-- **出力**: `tuple` - (取得したレコードリスト, 次のレコード位置)
-- **内部処理**:
-  - GSC API からデータを取得し、レコードリストを返す。
-- **依存関係**: `service`, `logger`
-
-### 関数名: insert_to_bigquery
-- **概要**: 取得したGSCデータをBigQueryに挿入します。
-- **入力**:
-  - `records` (list): GSCから取得したレコードのリスト。
-  - `date` (str): データ取得対象の日付。
+  - `client`: `bigquery.Client` - BigQueryクライアント
+  - `table_id`: `str` - 挿入先のテーブルID
+  - `rows_to_insert`: `list` - 挿入する行データのリスト
+  - `logger`: `logging.Logger` - ロガー
+  - `max_retries`: `int` - 最大リトライ回数
+  - `retry_delay`: `int` - リトライ間の待機時間（秒）
 - **出力**: なし
 - **内部処理**:
-  - レコードを集計し、BigQueryに挿入。
-- **依存関係**: `aggregate_records`, `insert_rows_with_retry`
-
-### 関数名: process_gsc_data
-- **概要**: GSC データを取得し、BigQuery に保存するメイン処理。
-- **入力**: なし
-- **出力**: なし
-- **内部処理**:
-  - GSC データを取得し、日付範囲に基づいて処理を実施。
-  - 処理位置を保存。
-- **依存関係**: `GSCConnector`, `initialize_date_range`
-
----
+  1. 最大リトライ回数まで挿入を試みる。
+  2. 挿入が成功したらログを記録して終了。
+  3. エラーが発生した場合はログを記録し、リトライを行う。
+  4. 最大リトライ回数に達した場合は例外を送出。
+- **依存関係**: `time`, `bigquery`, `logging`
 
 ## 6. データフローとモジュール相互作用
 
 - **入力元**: 
-  - `main.py` が `config.py` から設定情報を取得。
-  - `gsc_fetcher.py` が Google Search Console API からデータを取得。
+  - `generate_detailed_spec.py`および`generate_spec.py`は、`merge.txt`およびプロンプトファイルからデータを取得。
+  - `main.py`は`settings.ini`および`secrets.env`から設定情報を取得。
 
 - **処理順序**:
-  1. `main.py` が設定情報をロードし、`process_gsc_data` を実行。
-  2. `gsc_handler.py` でデータの取得範囲を設定し、`GSCConnector` を使用してデータを取得。
-  3. `gsc_fetcher.py` で取得したデータを BigQuery に挿入。
+  1. `merge_files.py`がプロジェクトのPythonファイルをマージし、`merge.txt`を生成。
+  2. `generate_spec.py`および`generate_detailed_spec.py`が`merge.txt`を使用して仕様書を生成。
+  3. `main.py`が`process_gsc_data`を呼び出し、GSCデータを取得してBigQueryに保存。
 
 - **出力先**: 
-  - 処理結果が `logs` フォルダにログとして保存。
-  - 取得したデータが BigQuery に保存。
+  - 生成された仕様書は`docs/`ディレクトリに保存。
+  - GSCデータはBigQueryに保存。
+  - ログは`logs/`ディレクトリに保存。
