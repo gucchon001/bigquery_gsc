@@ -26,12 +26,12 @@ def process_gsc_data():
     daily_api_limit = config.gsc_settings['daily_api_limit']
     processed_count = 0
 
+    # 新しい日付範囲を設定
+    end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
+    
     if initial_run:
         logger.info("INITIAL_RUN=true: 進捗テーブルを確認し、未処理の日付のデータを取得します。")
-        # 最新100日分のデータを取得対象
-        end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
         start_date = end_date - timedelta(days=config.gsc_settings['initial_fetch_days'] - 1)
-
         # 取得対象の日付リストを作成
         date_list = [end_date - timedelta(days=i) for i in range(config.gsc_settings['initial_fetch_days'])]
         
@@ -41,130 +41,61 @@ def process_gsc_data():
         # 未完了の日付をフィルタリング
         date_list = [date for date in date_list if date not in completed_dates]
         logger.info(f"Fetching data for dates: {date_list}")
-
-        # 各日付に対してデータを取得・処理
-        for current_date in date_list:
-            start_record = 0
-            while processed_count < daily_api_limit:
-                try:
-                    fetch_limit = config.gsc_settings['batch_size']
-                    logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
-                    records, next_record = gsc_connector.fetch_records(
-                        date=str(current_date),
-                        start_record=start_record,
-                        limit=fetch_limit
-                    )
-                    logger.info(f"Fetched {len(records)} records.")
-
-                    if records:
-                        gsc_connector.insert_to_bigquery(records, str(current_date))
-                        logger.info(f"Inserted {len(records)} records into BigQuery.")
-                        processed_count += 1  # API呼び出し回数をカウント
-
-                        # 進捗保存（アップサート）
-                        save_processing_position(config, {
-                            "date": current_date,
-                            "record": next_record,
-                            "is_date_completed": len(records) < fetch_limit
-                        })
-                        logger.info(f"Progress saved for date {current_date}.")
-
-                        if len(records) < fetch_limit:
-                            # 日付完了、次の日付へ
-                            logger.info(f"All records for date {current_date} have been processed.")
-                            break
-                        else:
-                            # 同じ日の続きから
-                            start_record = next_record
-                            logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
-                    else:
-                        # データなし、次の日付へ
-                        logger.info(f"No records fetched for date {current_date}. Moving to next date.")
-                        break
-
-                except Exception as e:
-                    logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
-                    break
-
     else:
-        logger.info("INITIAL_RUN=false: 進捗テーブルから最後の処理位置を取得し、データを継続的に取得します。")
-        # 前回の処理位置を取得
-        last_position = get_last_processed_position(config)
-        if last_position:
-            current_date = last_position["date"]
-            start_record = last_position["record"]
-            logger.info(f"Last position: date={current_date}, record={start_record}, is_completed={last_position['is_date_completed']}")
-        else:
-            logger.info("No previous processing position found. Fetching latest 100 days of data.")
-            # 処理開始日を設定
-            end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
-            start_date = end_date - timedelta(days=config.gsc_settings['daily_fetch_days'] - 1)
-            current_date = end_date
-            start_record = 0
+        logger.info("INITIAL_RUN=false: 最新のデータを取得します。")
+        start_date = end_date - timedelta(days=config.gsc_settings['daily_fetch_days'] - 1)
+        date_list = [end_date - timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+        logger.info(f"Processing GSC data for date range: {start_date} to {end_date}")
 
-        # 処理対象の日付範囲を設定
-        if last_position and not last_position["is_date_completed"]:
-            # 未完了のデータがある場合、その日付から再開
-            start_date = current_date
-        else:
-            # 新しい日付範囲を設定
-            end_date = datetime.today().date() - timedelta(days=2)
-            start_date = end_date - timedelta(days=config.gsc_settings['daily_fetch_days'] - 1)
+    # 各日付に対してデータを取得・処理
+    for current_date in date_list:
+        # 完了済みの日付をスキップ
+        is_completed = check_if_date_completed(config, current_date)
+        if is_completed:
+            logger.info(f"Date {current_date} is already completed. Skipping.")
+            continue
 
-        logger.info(f"Processing GSC data for date range: {start_date} to {current_date}")
+        start_record = 0
+        while processed_count < daily_api_limit:
+            try:
+                fetch_limit = config.gsc_settings['batch_size']
+                logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
+                records, next_record = gsc_connector.fetch_records(
+                    date=str(current_date),
+                    start_record=start_record,
+                    limit=fetch_limit
+                )
+                logger.info(f"Fetched {len(records)} records.")
 
-        # 取得対象の日付リストを作成
-        date_list = [current_date - timedelta(days=i) for i in range((current_date - start_date).days + 1)]
+                if records:
+                    gsc_connector.insert_to_bigquery(records, str(current_date))
+                    logger.info(f"Inserted {len(records)} records into BigQuery.")
+                    processed_count += 1
 
-        # 各日付に対してデータを取得・処理
-        for current_date in date_list:
-            # `is_date_completed=true` の日付はスキップ
-            is_completed = check_if_date_completed(config, current_date)
-            if is_completed:
-                logger.info(f"Date {current_date} is already completed. Skipping.")
-                continue
+                    # 進捗保存（アップサート）
+                    save_processing_position(config, {
+                        "date": current_date,
+                        "record": next_record,
+                        "is_date_completed": len(records) < fetch_limit
+                    })
+                    logger.info(f"Progress saved for date {current_date}.")
 
-            start_record = 0
-            while processed_count < daily_api_limit:
-                try:
-                    fetch_limit = config.gsc_settings['batch_size']
-                    logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
-                    records, next_record = gsc_connector.fetch_records(
-                        date=str(current_date),
-                        start_record=start_record,
-                        limit=fetch_limit
-                    )
-                    logger.info(f"Fetched {len(records)} records.")
-
-                    if records:
-                        gsc_connector.insert_to_bigquery(records, str(current_date))
-                        logger.info(f"Inserted {len(records)} records into BigQuery.")
-                        processed_count += 1  # API呼び出し回数をカウント
-
-                        # 進捗保存（アップサート）
-                        save_processing_position(config, {
-                            "date": current_date,
-                            "record": next_record,
-                            "is_date_completed": len(records) < fetch_limit
-                        })
-                        logger.info(f"Progress saved for date {current_date}.")
-
-                        if len(records) < fetch_limit:
-                            # 日付完了、次の日付へ
-                            logger.info(f"All records for date {current_date} have been processed.")
-                            break
-                        else:
-                            # 同じ日の続きから
-                            start_record = next_record
-                            logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
-                    else:
-                        # データなし、次の日付へ
-                        logger.info(f"No records fetched for date {current_date}. Moving to next date.")
+                    if len(records) < fetch_limit:
+                        # 日付完了、次の日付へ
+                        logger.info(f"All records for date {current_date} have been processed.")
                         break
-
-                except Exception as e:
-                    logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+                    else:
+                        # 同じ日の続きから
+                        start_record = next_record
+                        logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
+                else:
+                    # データなし、次の日付へ（進捗テーブルは更新しない）
+                    logger.info(f"No records fetched for date {current_date}. Moving to next date without updating progress.")
                     break
+
+            except Exception as e:
+                logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+                break
 
     logger.info(f"Processed {processed_count} API calls in total")
 

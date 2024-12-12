@@ -2,62 +2,55 @@
 # 機能要件仕様書
 
 ## 1. システム概要
-- プログラムの全体的な目的と対象のユーザー:
-  - このプログラムは、Google Search Console（GSC）からデータを取得し、BigQueryに格納することを目的としています。これにより、データ分析やレポート生成を支援します。対象ユーザーは、データエンジニアやデータアナリストで、GSCのデータを効率的に処理して活用したいと考えている人々です。
+このプログラムは、Google Search Console（GSC）からデータを取得し、BigQueryに保存するシステムです。主なユーザーは、SEOデータを分析するためにGSCデータを定期的に収集し、ビジネスインテリジェンスツールで活用したいと考えているデータアナリストやマーケティング担当者です。プログラムは自動化されたデータ収集とデータベース管理を提供し、データの可視化や分析を支援します。
 
 ## 2. 主要機能要件
-- 提供される各機能の説明:
-  1. **Google Search Console データ取得**:
-     - `GSCConnector`クラスを使用して、指定された日付範囲のデータをGoogle Search Consoleから取得します。
-     - APIを通じて指定されたプロパティのデータをフェッチします。
-  
-  2. **データの集計と正規化**:
-     - URLを正規化し、クエリパラメータやフラグメントを除去します。
-     - 取得したデータをクリック数、インプレッション数、平均順位で集計します。
-  
-  3. **BigQueryへのデータ挿入**:
-     - `insert_to_bigquery`メソッドを使用して、集計されたデータをBigQueryに挿入します。
-     - リトライロジックを用いて、データ挿入の信頼性を向上させます。
-  
-  4. **設定と環境の管理**:
-     - 環境変数と設定ファイル（`settings.ini`や`secrets.env`）を使用して、プログラムの動作を制御します。
-     - 環境に応じた設定のロードと適用を行います。
-  
-  5. **ログ出力とエラーハンドリング**:
-     - 詳細なログを出力し、エラーが発生した際のトラブルシューティングを支援します。
-     - 各ステップでの進捗状況やエラーを記録します。
+- **GSCデータ取得**: 
+  - `GSCConnector`クラスを利用して、指定された日付範囲のGSCデータを取得します。
+  - データは指定されたURLとクエリに基づいて取得されます。
+
+- **データ集計と正規化**:
+  - `url_utils`モジュールで提供される関数を使用して、取得したデータをURLごとに集計し、クリック数、インプレッション数、平均順位を計算します。
+
+- **BigQueryへのデータ挿入**:
+  - 集計されたデータをBigQueryに挿入します。データの挿入はリトライロジックを用いて確実に行われます。
+
+- **進捗管理**:
+  - データ取得の進捗状況をBigQueryに保存し、次回のデータ取得時に再開位置を決定します。
+
+- **設定と環境管理**:
+  - `.env`ファイルと`settings.ini`を用いて、APIキーやデータ取得設定を管理します。
+
+- **エラーハンドリングとロギング**:
+  - ログ出力を通じて、システムの動作状況を記録し、エラー時には詳細な情報を提供します。
 
 ## 3. 非機能要件
-- パフォーマンス:
-  - データ取得と挿入は効率的に行われ、APIのレート制限を考慮して計画されています。
-  - BigQueryへの挿入はバッチ処理で行い、リトライを通じて安定性を確保します。
+- **パフォーマンス**:
+  - データ取得のクォータ制限を考慮し、効率的にAPIを呼び出します。
+  - データベースへの挿入はバッチ処理で行い、効率を最適化します。
 
-- セキュリティ:
-  - OAuth 2.0を使用してGoogle APIにアクセスします。認証情報は環境変数および設定ファイルで管理され、機密情報は.gitignoreで保護されます。
+- **セキュリティ**:
+  - セキュリティ情報（APIキーや認証情報）は環境変数や設定ファイルで管理し、直接コードに埋め込まないようにしています。
+  - `.gitignore`を利用し、機密情報がバージョン管理システムに登録されないようにしています。
 
-- 可用性:
-  - 定期的なジョブの実行を前提として設計されており、エラー発生時には再試行を行います。
-
-- ロギング:
-  - ログファイルには詳細なデバッグ情報を含め、問題発生時の解析を容易にしています。
+- **可用性**:
+  - プログラムは障害が発生した際に再試行を行い、可能な限りデータの取得を続行します。
+  - データ取得の進捗をトラッキングし、再起動後も処理を再開できるように設計されています。
 
 ## 4. 技術要件
-- 開発環境:
-  - Python 3.8以上
-  - Google Cloud SDKを使用したBigQueryアクセス
-  - Google API Pythonクライアントライブラリ
+- **開発環境**:
+  - Python 3.xが必要です。
 
-- システム環境:
-  - Google Cloud Platformの利用を想定（BigQueryおよびGoogle Search Consoleへのアクセス）
+- **外部ライブラリ**:
+  - `google-cloud-bigquery`、`google-auth`、`google-api-python-client`、`python-dotenv`、`openai`、`icecream`などが必要です。これらは`requirements.txt`で指定されています。
 
-- 必要なライブラリ:
-  - `google-cloud-bigquery`: BigQueryへのアクセス
-  - `google-auth`: Google APIへのアクセス認証
-  - `dotenv`: 環境変数の管理
-  - `icecream`: デバッグ用のログ出力
-  - `anytree`: ディレクトリ構造の可視化
+- **システム環境**:
+  - Google Cloud Platformのサービス（BigQuery、Google Search Console API）へのアクセス権が必要です。
+  - 環境変数や設定ファイルを適切に設定し、認証情報を提供する必要があります。
 
-以上がこのプログラムの機能要件仕様です。各機能は相互に連携し、GSCからのデータ取得から分析基盤への登録までのプロセスを自動化しています。 
+- **依存関係**:
+  - `dotenv`を使用して環境変数を管理し、`configparser`を使用して設定ファイルを読み込みます。
+  - `anytree`を利用してディレクトリ構造を可視化します。 
 
 ---
 
@@ -428,7 +421,7 @@ OpenAI APIキーが設定されていないため、仕様書を生成できま�
 
             # 現在の日付を挿入
             current_date = datetime.now().strftime("%Y-%m-%d")
-            updated_content = updated_content.replace("2024-12-08", current_date)
+            updated_content = updated_content.replace("2024-12-12", current_date)
 
             # README.md に書き込む
             if write_file_content(readme_path, updated_content):
@@ -887,7 +880,7 @@ def update_readme(template_path: str, readme_path: str, spec_path: str, merge_pa
 
         # 現在の日付を挿入（オプション）
         current_date = datetime.now().strftime("%Y-%m-%d")
-        updated_content = updated_content.replace("2024-12-08", current_date)
+        updated_content = updated_content.replace("2024-12-12", current_date)
 
         # README.md に書き込む
         success = write_file_content(readme_path, updated_content)
@@ -1293,10 +1286,8 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 from modules.gsc_fetcher import GSCConnector
-from modules.date_initializer import initialize_date_range
 from utils.environment import config
 from utils.date_utils import get_current_jst_datetime, format_datetime_jst
-from utils.retry import insert_rows_with_retry
 
 from utils.logging_config import get_logger
 logger = get_logger(__name__)
@@ -1305,11 +1296,10 @@ def process_gsc_data():
     """GSC データを取得し、BigQuery に保存するメイン処理"""
     logger.info("process_gsc_data が呼び出されました。")
 
-    # 取得する日付範囲を設定（古い日付から開始し、さらに過去に向かって進む）
-    start_date, end_date = initialize_date_range()
-    logger.info(f"Processing GSC data for date range: {start_date} to {end_date}")
+    # 初期実行フラグの取得
+    initial_run = config.gsc_settings['initial_run']
 
-    # GSCConnector に Config を渡す
+    # GSCConnector の初期化
     gsc_connector = GSCConnector(config)
     logger.info("GSCConnector を初期化しました。")
 
@@ -1317,74 +1307,227 @@ def process_gsc_data():
     daily_api_limit = config.gsc_settings['daily_api_limit']
     processed_count = 0
 
-    # 前回の処理位置を取得
-    last_position = get_last_processed_position(config)
-    if last_position:
-        logger.info(f"Last position: date={last_position['date']}, record={last_position['record']}")
+    if initial_run:
+        logger.info("INITIAL_RUN=true: 進捗テーブルを確認し、未処理の日付のデータを取得します。")
+        # 最新100日分のデータを取得対象
+        end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
+        start_date = end_date - timedelta(days=config.gsc_settings['initial_fetch_days'] - 1)
+
+        # 取得対象の日付リストを作成
+        date_list = [end_date - timedelta(days=i) for i in range(config.gsc_settings['initial_fetch_days'])]
+        
+        # 進捗テーブルから `is_date_completed=true` の日付を取得
+        completed_dates = get_completed_dates(config, date_list)
+        
+        # 未完了の日付をフィルタリング
+        date_list = [date for date in date_list if date not in completed_dates]
+        logger.info(f"Fetching data for dates: {date_list}")
+
+        # 各日付に対してデータを取得・処理
+        for current_date in date_list:
+            start_record = 0
+            while processed_count < daily_api_limit:
+                try:
+                    fetch_limit = config.gsc_settings['batch_size']
+                    logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
+                    records, next_record = gsc_connector.fetch_records(
+                        date=str(current_date),
+                        start_record=start_record,
+                        limit=fetch_limit
+                    )
+                    logger.info(f"Fetched {len(records)} records.")
+
+                    if records:
+                        gsc_connector.insert_to_bigquery(records, str(current_date))
+                        logger.info(f"Inserted {len(records)} records into BigQuery.")
+                        processed_count += 1  # API呼び出し回数をカウント
+
+                        # 進捗保存（アップサート）
+                        save_processing_position(config, {
+                            "date": current_date,
+                            "record": next_record,
+                            "is_date_completed": len(records) < fetch_limit
+                        })
+                        logger.info(f"Progress saved for date {current_date}.")
+
+                        if len(records) < fetch_limit:
+                            # 日付完了、次の日付へ
+                            logger.info(f"All records for date {current_date} have been processed.")
+                            break
+                        else:
+                            # 同じ日の続きから
+                            start_record = next_record
+                            logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
+                    else:
+                        # データなし、次の日付へ
+                        logger.info(f"No records fetched for date {current_date}. Moving to next date.")
+                        break
+
+                except Exception as e:
+                    logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+                    break
+
     else:
-        logger.info("No previous processing position found.")
+        logger.info("INITIAL_RUN=false: 進捗テーブルから最後の処理位置を取得し、データを継続的に取得します。")
+        # 前回の処理位置を取得
+        last_position = get_last_processed_position(config)
+        if last_position:
+            current_date = last_position["date"]
+            start_record = last_position["record"]
+            logger.info(f"Last position: date={current_date}, record={start_record}, is_completed={last_position['is_date_completed']}")
+        else:
+            logger.info("No previous processing position found. Fetching latest 100 days of data.")
+            # 処理開始日を設定
+            end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
+            start_date = end_date - timedelta(days=config.gsc_settings['daily_fetch_days'] - 1)
+            current_date = end_date
+            start_record = 0
 
-    # 処理開始日を設定
-    current_date = last_position["date"] if last_position else end_date
-    start_record = last_position["record"] if last_position else 0
+        # 処理対象の日付範囲を設定
+        if last_position and not last_position["is_date_completed"]:
+            # 未完了のデータがある場合、その日付から再開
+            start_date = current_date
+        else:
+            # 新しい日付範囲を設定
+            end_date = datetime.today().date() - timedelta(days=2)
+            start_date = end_date - timedelta(days=config.gsc_settings['daily_fetch_days'] - 1)
 
-    while current_date >= start_date and processed_count < daily_api_limit:
-        try:
-            remaining_quota = daily_api_limit - processed_count
-            fetch_limit = config.gsc_settings['batch_size']  # 既に int として取得
+        logger.info(f"Processing GSC data for date range: {start_date} to {current_date}")
 
-            logger.debug(f"fetch_limit type: {type(fetch_limit)}, value: {fetch_limit}")
+        # 取得対象の日付リストを作成
+        date_list = [current_date - timedelta(days=i) for i in range((current_date - start_date).days + 1)]
 
-            logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
-            records, next_record = gsc_connector.fetch_records(
-                date=str(current_date),
-                start_record=start_record,
-                limit=fetch_limit
-            )
-            logger.info(f"Fetched {len(records)} records.")
+        # 各日付に対してデータを取得・処理
+        for current_date in date_list:
+            # `is_date_completed=true` の日付はスキップ
+            is_completed = check_if_date_completed(config, current_date)
+            if is_completed:
+                logger.info(f"Date {current_date} is already completed. Skipping.")
+                continue
 
-            if records:
-                gsc_connector.insert_to_bigquery(records, str(current_date))
-                logger.info(f"Inserted {len(records)} records into BigQuery.")
-                processed_count += 1  # API呼び出し回数をカウント
+            start_record = 0
+            while processed_count < daily_api_limit:
+                try:
+                    fetch_limit = config.gsc_settings['batch_size']
+                    logger.info(f"Fetching records from {current_date}, start_record={start_record}, limit={fetch_limit}")
+                    records, next_record = gsc_connector.fetch_records(
+                        date=str(current_date),
+                        start_record=start_record,
+                        limit=fetch_limit
+                    )
+                    logger.info(f"Fetched {len(records)} records.")
 
-                # 進捗保存（アップサート）
-                save_processing_position(config, {
-                    "date": current_date,
-                    "record": next_record,
-                    "is_date_completed": len(records) < fetch_limit
-                })
-                logger.info(f"Progress saved for date {current_date}.")
+                    if records:
+                        gsc_connector.insert_to_bigquery(records, str(current_date))
+                        logger.info(f"Inserted {len(records)} records into BigQuery.")
+                        processed_count += 1  # API呼び出し回数をカウント
 
-                if len(records) < fetch_limit:
-                    # 日付完了、次の日付へ
-                    current_date -= timedelta(days=1)
-                    start_record = 0
-                    logger.info(f"Moving to next date: {current_date}")
-                else:
-                    # 同じ日の続きから
-                    start_record = next_record
-                    logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
-            else:
-                # データなし、次の日付へ
-                current_date -= timedelta(days=1)
-                start_record = 0
-                logger.info(f"No records fetched. Moving to next date: {current_date}")
+                        # 進捗保存（アップサート）
+                        save_processing_position(config, {
+                            "date": current_date,
+                            "record": next_record,
+                            "is_date_completed": len(records) < fetch_limit
+                        })
+                        logger.info(f"Progress saved for date {current_date}.")
 
-        except Exception as e:
-            logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
-            break
+                        if len(records) < fetch_limit:
+                            # 日付完了、次の日付へ
+                            logger.info(f"All records for date {current_date} have been processed.")
+                            break
+                        else:
+                            # 同じ日の続きから
+                            start_record = next_record
+                            logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
+                    else:
+                        # データなし、次の日付へ
+                        logger.info(f"No records fetched for date {current_date}. Moving to next date.")
+                        break
+
+                except Exception as e:
+                    logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+                    break
 
     logger.info(f"Processed {processed_count} API calls in total")
 
-'''''
     # 初回実行後にフラグを更新
-    initial_run = config.gsc_settings['initial_run']
-    if initial_run and not last_position:
-        # 初回実行が完了したらフラグをfalseに設定
+    if initial_run:
         update_initial_run_flag(config, False)
         logger.info("初回実行が完了しました。INITIAL_RUNフラグをfalseに更新しました。")
-'''''
+
+def get_completed_dates(config, date_list):
+    """進捗テーブルから `is_date_completed=true` の日付を取得します。
+
+    Args:
+        config: Config クラスのインスタンス
+        date_list (list): チェック対象の日付リスト
+
+    Returns:
+        list: 完了済みの日付リスト
+    """
+
+    credentials_path = config.credentials_path
+    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
+    project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
+    dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
+    progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
+    
+    table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
+
+    query = f"""
+        SELECT data_date
+        FROM `{table_id}`
+        WHERE is_date_completed = TRUE
+          AND data_date IN UNNEST(@dates)
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("dates", "DATE", date_list)
+        ]
+    )
+
+    try:
+        query_job = client.query(query, job_config=job_config)
+        results = list(query_job.result())
+        completed_dates = [row.data_date for row in results]
+        logger.info(f"Completed dates: {completed_dates}")
+        return completed_dates
+    except Exception as e:
+        logger.error(f"Error fetching completed dates: {e}", exc_info=True)
+        return []
+
+def check_if_date_completed(config, date):
+    """指定された日付が進捗テーブルで完了しているかを確認します。"""
+    credentials_path = config.credentials_path
+    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
+    dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
+    progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
+    
+    client = bigquery.Client(credentials=credentials, project=project_id)
+    table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
+
+
+    query = f"""
+        SELECT COUNT(*) as count
+        FROM `{table_id}`
+        WHERE data_date = @data_date
+          AND is_date_completed = TRUE
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("data_date", "DATE", date)
+        ]
+    )
+
+    try:
+        query_job = client.query(query, job_config=job_config)
+        result = query_job.result().to_dataframe()
+        count = result['count'][0]
+        return count > 0
+    except Exception as e:
+        logger.error(f"Error checking if date {date} is completed: {e}", exc_info=True)
+        return False
 
 def update_initial_run_flag(config, flag: bool):
     """
@@ -1414,8 +1557,14 @@ def save_processing_position(config, position):
     """処理位置を保存（アップサート操作）"""
     credentials_path = config.credentials_path
     credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
-    client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
-    table_id = config.progress_table_id
+    project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
+    dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
+    progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
+
+    client = bigquery.Client(credentials=credentials, project=project_id)
+    table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
+
+    logger.debug(f"Constructed Table ID: {table_id}")  # デバッグログの追加
 
     updated_at_jst = format_datetime_jst(get_current_jst_datetime())
 
@@ -1457,16 +1606,20 @@ def save_processing_position(config, position):
 
 def get_last_processed_position(config):
     """最後に処理したポジションを取得"""
+    project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
+    dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
+    progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
+    
+    table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
+
     credentials_path = config.credentials_path
     credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
-    client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
-    table_id = config.progress_table_id
+    client = bigquery.Client(credentials=credentials, project=project_id)
 
     query = f"""
-        SELECT data_date, record_position
+        SELECT data_date, record_position, is_date_completed
         FROM `{table_id}`
-        WHERE is_date_completed = FALSE
-        ORDER BY updated_at DESC
+        ORDER BY data_date DESC, updated_at DESC
         LIMIT 1
     """
     try:
@@ -1475,13 +1628,13 @@ def get_last_processed_position(config):
         if results:
             return {
                 "date": results[0].data_date,  # data_dateはすでにdatetime.date型
-                "record": results[0].record_position
+                "record": results[0].record_position,
+                "is_date_completed": results[0].is_date_completed
             }
         return None
     except Exception as e:
         logger.error(f"Error fetching last processed position: {e}", exc_info=True)
         return None
-
 
 ================================================================================
 File: src\utils\__init__.py
@@ -1744,6 +1897,7 @@ class Config:
                 'initial_run': self.config['GSC_INITIAL'].getboolean('INITIAL_RUN', fallback=True),
                 'initial_fetch_days': int(self.config['GSC_DAILY']['INITIAL_FETCH_DAYS']),
                 'daily_fetch_days': int(self.config['GSC_DAILY']['DAILY_FETCH_DAYS']),
+                'project_id': self.config['BIGQUERY']['PROJECT_ID'],
             }
             self.logger.info(f"GSC settings loaded: {settings}")  # 初回のみログ出力
             return settings
@@ -1864,6 +2018,21 @@ class Config:
         except KeyError as e:
             self.logger.error(f"Missing configuration for {section}.{key}: {e}")
             raise
+
+    def get_config_file(self, file_name: str = "settings.ini") -> Path:
+        """
+        設定ファイルのパスを取得します。
+
+        Args:
+            file_name (str): 設定ファイル名
+
+        Returns:
+            Path: 設定ファイルのパス
+
+        Raises:
+            FileNotFoundError: 指定された設定ファイルが見つからない場合
+        """
+        return EnvironmentUtils.get_config_file(file_name)
 
     def __str__(self):
         return f"Config(env={self.env}, base_path={self.base_path})"
