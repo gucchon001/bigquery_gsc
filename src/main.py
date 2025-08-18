@@ -1,7 +1,7 @@
 #main.py
-from utils.environment import EnvironmentUtils as env
+from utils.environment import EnvironmentUtils as env, config
 from utils.logging_config import get_logger
-from modules.gsc_handler import process_gsc_data
+from modules.gsc_handler import process_gsc_data, cleanup_progress_table
 
 # 名前付きロガーを取得
 logger = get_logger(__name__)
@@ -40,6 +40,12 @@ def main() -> None:
     print(f'設定ファイルの設定完了{{"demo": "{temp}"}}')
     print(f'機密情報ファイルの設定完了{{"demo": "{secrets_demo}"}}')
     print('ログ設定完了')
+
+    # 進捗テーブルの不要行を軽くクリーンアップ（ストリーミングバッファが乗る前の早期段階で実施）
+    try:
+        cleanup_progress_table(config, retention_minutes=90)
+    except Exception:
+        pass
 
     # GSC データ取得処理を実行
     logger.info("process_gsc_data を呼び出します。")

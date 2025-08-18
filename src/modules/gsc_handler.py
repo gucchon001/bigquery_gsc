@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from google.cloud import bigquery
+from google.api_core.exceptions import BadRequest
 from google.oauth2 import service_account
 
 from modules.gsc_fetcher import GSCConnector
@@ -11,6 +12,66 @@ from utils.date_utils import get_current_jst_datetime, format_datetime_jst
 from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
+def cleanup_progress_table(config, retention_minutes: int = 90) -> None:
+    """進捗テーブルの古い不要行を削除します。
+
+    - ストリーミングバッファの制約を避けるため、JST現在時刻から retention_minutes 分より古い行のみ対象
+    - `record_position = 0` の行を削除
+    - 各 `data_date` で最新(`updated_at`最大)以外の履歴行を削除
+    """
+    credentials_path = config.credentials_path
+    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')
+    dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')
+    progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')
+
+    client = bigquery.Client(credentials=credentials, project=project_id)
+    table_id = f"{project_id}.{dataset_id}.{progress_table_id}"
+
+    # しきい値（JST）
+    threshold_dt = get_current_jst_datetime() - timedelta(minutes=retention_minutes)
+    threshold_str = format_datetime_jst(threshold_dt)
+
+    # 1) record_position = 0 の古い行を削除
+    delete_zero_pos = f"""
+        DELETE FROM `{table_id}`
+        WHERE record_position = 0
+          AND updated_at < @threshold
+    """
+
+    # 2) 同一日で最新でない古い履歴行を削除（しきい値より古いもののみ）
+    delete_non_latest = f"""
+        DELETE FROM `{table_id}`
+        WHERE updated_at < @threshold
+          AND (data_date, updated_at) NOT IN (
+            SELECT data_date, MAX(updated_at) AS updated_at
+            FROM `{table_id}`
+            WHERE updated_at < @threshold
+            GROUP BY data_date
+          )
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("threshold", "DATETIME", threshold_str)
+        ]
+    )
+
+    try:
+        logger.info("Cleaning progress table: deleting old zero-position rows…")
+        client.query(delete_zero_pos, job_config=job_config).result()
+        logger.info("Cleaning progress table: deleting old non-latest history rows…")
+        client.query(delete_non_latest, job_config=job_config).result()
+        logger.info("Progress table cleanup finished.")
+    except BadRequest as e:
+        message = str(e)
+        if "would affect rows in the streaming buffer" in message:
+            logger.info("Cleanup skipped due to streaming buffer: will retry on next run.")
+            return
+        logger.error(f"Progress table cleanup failed: {e}", exc_info=True)
+    except Exception as e:
+        logger.error(f"Progress table cleanup failed: {e}", exc_info=True)
+        
 def process_gsc_data():
     """GSC データを取得し、BigQuery に保存するメイン処理"""
     logger.info("process_gsc_data が呼び出されました。")
@@ -125,10 +186,22 @@ def get_completed_dates(config, date_list):
     table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
 
     query = f"""
+        WITH ranked AS (
+            SELECT
+                data_date,
+                is_date_completed,
+                updated_at,
+                ROW_NUMBER() OVER (
+                    PARTITION BY data_date
+                    ORDER BY is_date_completed DESC, updated_at DESC
+                ) AS rn
+            FROM `{table_id}`
+            WHERE record_position > 0
+              AND data_date IN UNNEST(@dates)
+        )
         SELECT data_date
-        FROM `{table_id}`
-        WHERE is_date_completed = TRUE
-          AND data_date IN UNNEST(@dates)
+        FROM ranked
+        WHERE rn = 1 AND is_date_completed = TRUE
     """
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
@@ -159,10 +232,20 @@ def check_if_date_completed(config, date):
 
 
     query = f"""
-        SELECT COUNT(*) as count
-        FROM `{table_id}`
-        WHERE data_date = @data_date
-          AND is_date_completed = TRUE
+        WITH ranked AS (
+            SELECT
+                data_date,
+                is_date_completed,
+                updated_at,
+                ROW_NUMBER() OVER (
+                    PARTITION BY data_date
+                    ORDER BY is_date_completed DESC, updated_at DESC
+                ) AS rn
+            FROM `{table_id}`
+            WHERE record_position > 0 AND data_date = @data_date
+        )
+        SELECT COUNTIF(is_date_completed = TRUE AND rn = 1) AS count
+        FROM ranked
     """
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
@@ -222,19 +305,10 @@ def save_processing_position(config, position):
     record_position = position["record"]
     is_date_completed = position["is_date_completed"]
 
-    # MERGE ステートメントを使用してアップサートを実行
-    merge_query = f"""
-        MERGE `{table_id}` T
-        USING (SELECT @data_date AS data_date) S
-        ON T.data_date = S.data_date
-        WHEN MATCHED THEN
-            UPDATE SET 
-                record_position = @record_position,
-                is_date_completed = @is_date_completed,
-                updated_at = @updated_at
-        WHEN NOT MATCHED THEN
-            INSERT (data_date, record_position, is_date_completed, updated_at)
-            VALUES (@data_date, @record_position, @is_date_completed, @updated_at)
+    # UPDATE/MERGE はストリーミングバッファに阻害されるため、追記INSERTに変更
+    insert_query = f"""
+        INSERT INTO `{table_id}` (data_date, record_position, is_date_completed, updated_at)
+        VALUES (@data_date, @record_position, @is_date_completed, @updated_at)
     """
 
     job_config = bigquery.QueryJobConfig(
@@ -247,7 +321,7 @@ def save_processing_position(config, position):
     )
 
     try:
-        query_job = client.query(merge_query, job_config=job_config)
+        query_job = client.query(insert_query, job_config=job_config)
         query_job.result()  # 完了まで待機
         logger.info(f"Progress updated for date {data_date}.")
     except Exception as e:
@@ -269,7 +343,8 @@ def get_last_processed_position(config):
     query = f"""
         SELECT data_date, record_position, is_date_completed
         FROM `{table_id}`
-        ORDER BY data_date DESC, updated_at DESC
+        WHERE record_position > 0
+        ORDER BY updated_at DESC
         LIMIT 1
     """
     try:
