@@ -44,15 +44,31 @@ fi
 # COSではサービスアカウントの認証情報が自動的に利用可能
 # gcloudコマンドのパスを確認して使用
 echo "Authenticating with Artifact Registry..."
+GCLOUD_PATH=""
 if command -v gcloud &> /dev/null; then
-    gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+    GCLOUD_PATH=$(command -v gcloud)
 elif [ -f /usr/bin/gcloud ]; then
-    /usr/bin/gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+    GCLOUD_PATH="/usr/bin/gcloud"
 elif [ -f /usr/local/bin/gcloud ]; then
-    /usr/local/bin/gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+    GCLOUD_PATH="/usr/local/bin/gcloud"
+fi
+
+if [ -n "$GCLOUD_PATH" ]; then
+    echo "Using gcloud at: $GCLOUD_PATH"
+    $GCLOUD_PATH auth configure-docker ${REGION}-docker.pkg.dev --quiet || {
+        echo "WARNING: gcloud auth configure-docker failed, but continuing..."
+    }
 else
     echo "WARNING: gcloud not found, trying to authenticate using service account credentials..."
     # COSではサービスアカウントの認証情報が自動的に利用可能なため、直接docker pullを試みる
+    # サービスアカウントの認証情報を取得してDockerに設定
+    ACCESS_TOKEN=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+    if [ -n "$ACCESS_TOKEN" ]; then
+        echo "Obtained access token, configuring Docker..."
+        echo "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin ${REGION}-docker.pkg.dev || {
+            echo "WARNING: Docker login with access token failed, but continuing..."
+        }
+    fi
 fi
 
 # イメージのプル
