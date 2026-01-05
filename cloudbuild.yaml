@@ -27,22 +27,37 @@ steps:
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest'
     id: 'push-image-latest'
 
-  # GCE VMの起動スクリプトを更新（オプション）
+  # Cloud Run Jobsの更新
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        if gcloud compute instances describe ${_VM_NAME} --zone=${_ZONE} --project=${PROJECT_ID} &>/dev/null; then
-          echo "Updating VM metadata..."
-          gcloud compute instances add-metadata ${_VM_NAME} \
-            --zone=${_ZONE} \
-            --metadata-from-file=startup-script=${_STARTUP_SCRIPT_PATH} \
+        IMAGE_URL="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest"
+        if gcloud run jobs describe ${_JOB_NAME} --region=${_REGION} --project=${PROJECT_ID} &>/dev/null; then
+          echo "Updating Cloud Run Job..."
+          gcloud run jobs update ${_JOB_NAME} \
+            --image=${IMAGE_URL} \
+            --region=${_REGION} \
+            --memory=2Gi \
+            --cpu=1 \
+            --task-timeout=3h \
+            --max-retries=0 \
+            --service-account=${_SERVICE_ACCOUNT} \
             --project=${PROJECT_ID}
         else
-          echo "VM ${_VM_NAME} does not exist. Skipping metadata update."
+          echo "Creating Cloud Run Job..."
+          gcloud run jobs create ${_JOB_NAME} \
+            --image=${IMAGE_URL} \
+            --region=${_REGION} \
+            --memory=2Gi \
+            --cpu=1 \
+            --task-timeout=3h \
+            --max-retries=0 \
+            --service-account=${_SERVICE_ACCOUNT} \
+            --project=${PROJECT_ID}
         fi
-    id: 'update-vm-metadata'
+    id: 'update-cloud-run-job'
     waitFor: ['push-image-latest']
 
 # 置換変数の定義
@@ -50,9 +65,8 @@ substitutions:
   _REGION: 'asia-northeast1'
   _REPOSITORY: 'gsc-repo'
   _IMAGE_NAME: 'bq-gsc-scraper'
-  _VM_NAME: 'gsc-scheduler-vm'
-  _ZONE: 'asia-northeast1-a'
-  _STARTUP_SCRIPT_PATH: 'gce/startup-script.sh'
+  _JOB_NAME: 'bq-gsc-scraper-job'
+  _SERVICE_ACCOUNT: 'jukust-gcs@bigquery-jukust.iam.gserviceaccount.com'
 
 # ビルドのタイムアウト（10分）
 timeout: '600s'

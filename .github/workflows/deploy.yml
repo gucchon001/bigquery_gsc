@@ -10,7 +10,7 @@ on:
       - 'config/**'
       - 'Dockerfile'
       - 'requirements.txt'
-      - 'gce/**'
+      - 'cloudrun/**'
       - '.github/workflows/deploy.yml'
       - 'cloudbuild.yaml'
 
@@ -34,7 +34,7 @@ jobs:
         run: |
           gcloud builds submit \
             --config=cloudbuild.yaml \
-            --substitutions=_REGION=asia-northeast1,_REPOSITORY=gsc-repo,_IMAGE_NAME=bq-gsc-scraper,_VM_NAME=gsc-scheduler-vm,_ZONE=asia-northeast1-a,_STARTUP_SCRIPT_PATH=gce/startup-script.sh \
+            --substitutions=_REGION=asia-northeast1,_REPOSITORY=gsc-repo,_IMAGE_NAME=bq-gsc-scraper,_JOB_NAME=bq-gsc-scraper-job,_SERVICE_ACCOUNT=jukust-gcs@bigquery-jukust.iam.gserviceaccount.com \
             --project=bigquery-jukust \
             --timeout=600s
 
