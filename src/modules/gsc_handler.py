@@ -156,8 +156,14 @@ def process_gsc_data():
                         start_record = next_record
                         logger.info(f"Continuing on the same date: {current_date}, new start_record={start_record}")
                 else:
-                    # データなし、次の日付へ（進捗テーブルは更新しない）
-                    logger.info(f"No records fetched for date {current_date}. Moving to next date without updating progress.")
+                    # データなし、次の日付へ（0件でも完了としてマーク）
+                    logger.info(f"No records fetched for date {current_date}. Marking as completed and moving to next date.")
+                    save_processing_position(config, {
+                        "date": current_date,
+                        "record": 0,
+                        "is_date_completed": True
+                    })
+                    logger.info(f"Progress saved for date {current_date} (0 records).")
                     break
 
             except Exception as e:
@@ -234,7 +240,7 @@ def get_completed_dates(config, date_list):
                     ORDER BY is_date_completed DESC, updated_at DESC
                 ) AS rn
             FROM `{table_id}`
-            WHERE record_position > 0
+            WHERE (record_position > 0 OR is_date_completed = TRUE)
               AND data_date IN UNNEST(@dates)
         )
         SELECT data_date
@@ -280,7 +286,7 @@ def check_if_date_completed(config, date):
                     ORDER BY is_date_completed DESC, updated_at DESC
                 ) AS rn
             FROM `{table_id}`
-            WHERE record_position > 0 AND data_date = @data_date
+            WHERE (record_position > 0 OR is_date_completed = TRUE) AND data_date = @data_date
         )
         SELECT COUNTIF(is_date_completed = TRUE AND rn = 1) AS count
         FROM ranked
