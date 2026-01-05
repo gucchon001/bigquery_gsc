@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Logs
+logs/*.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.cursor/
+plans/
+docs/
+data/
+scripts/
+tests/
+spec_tools/
+
+# Config files (will be loaded from Secret Manager)
+# config/secrets.env
+# config/settings.ini
+# config/*.json
+
+# Documentation
+README.md
+*.md
+
+# Batch files
+*.bat
+*.ps1
+

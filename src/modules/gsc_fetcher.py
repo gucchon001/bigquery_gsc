@@ -10,6 +10,8 @@ from datetime import datetime
 from utils.retry import insert_rows_with_retry
 
 from utils.logging_config import get_logger
+from utils.webhook_notifier import send_error_notification
+
 logger = get_logger(__name__)
 
 class GSCConnector:
@@ -128,6 +130,15 @@ class GSCConnector:
             insert_rows_with_retry(client, table_id, rows_to_insert, self.logger)
         except Exception as e:
             self.logger.error(f"BigQueryへの挿入が失敗しました: {e}", exc_info=True)
+            # エラー通知を送信
+            send_error_notification(
+                error=e,
+                error_type="BigQuery Insertion Error",
+                context={
+                    "date": date,
+                    "record_count": len(rows_to_insert)
+                }
+            )
             raise
 
     def fetch_and_insert_gsc_data(self, start_date=None, end_date=None):

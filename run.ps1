@@ -1,5 +1,10 @@
 $ErrorActionPreference = 'Stop'
 
+# Set UTF-8 encoding for output
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 | Out-Null
+
 # Virtual environment path
 $VenvPath = Join-Path "." "venv"
 $PythonExe = Join-Path $VenvPath "Scripts/python.exe"
@@ -19,7 +24,8 @@ try {
     }
 
     Write-Host "[INFO] Running script: $ScriptPath"
-    & $PythonExe $ScriptPath
+    $env:PYTHONIOENCODING = "utf-8"
+    & $PythonExe -X utf8 $ScriptPath
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Script execution failed." -ForegroundColor Red
         exit $LASTEXITCODE

@@ -7,6 +7,13 @@ from typing import Optional, Any
 import configparser
 import logging
 
+# Secret Managerのインポート（オプション）
+try:
+    from .secret_manager import SecretManagerUtils
+    SECRET_MANAGER_AVAILABLE = True
+except ImportError:
+    SECRET_MANAGER_AVAILABLE = False
+
 class EnvironmentUtils:
     """プロジェクト全体で使用する環境関連のユーティリティクラス"""
 
@@ -36,11 +43,23 @@ class EnvironmentUtils:
     @staticmethod
     def load_env(env_file: Optional[Path] = None) -> None:
         """
-        環境変数を .env ファイルからロードします。
+        環境変数を .env ファイルまたはSecret Managerからロードします。
 
         Args:
             env_file (Optional[Path]): .env ファイルのパス
         """
+        # Secret Managerが利用可能な場合は優先
+        if SECRET_MANAGER_AVAILABLE and SecretManagerUtils.is_available():
+            try:
+                SecretManagerUtils.load_secrets_to_environment()
+                _logger = logging.getLogger(__name__)
+                _logger.info("Environment variables loaded from Secret Manager")
+                return
+            except Exception as e:
+                _logger = logging.getLogger(__name__)
+                _logger.warning(f"Failed to load from Secret Manager, falling back to file: {e}")
+
+        # ファイルから読み込む（フォールバック）
         env_file = env_file or (EnvironmentUtils.BASE_DIR / "config" / "secrets.env")
 
         if not env_file.exists():
@@ -233,8 +252,20 @@ class Config:
         return self._gsc_settings
 
     def _load_config(self):
-        """設定ファイルの読み込み"""
+        """設定ファイルの読み込み（Secret Manager優先、ファイルはフォールバック）"""
         config = configparser.ConfigParser()
+        
+        # Secret Managerが利用可能な場合は優先
+        if SECRET_MANAGER_AVAILABLE and SecretManagerUtils.is_available():
+            try:
+                secret_config = SecretManagerUtils.get_settings_ini()
+                if secret_config:
+                    self.logger.info("Loaded configuration from Secret Manager")
+                    return secret_config
+            except Exception as e:
+                self.logger.warning(f"Failed to load from Secret Manager, falling back to file: {e}")
+
+        # ファイルから読み込む（フォールバック）
         config_path = self.base_path / 'config' / 'settings.ini'
 
         if not config_path.exists():

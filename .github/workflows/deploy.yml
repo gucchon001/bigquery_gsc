@@ -1,0 +1,40 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/**'
+      - 'config/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'gce/**'
+      - '.github/workflows/deploy.yml'
+      - 'cloudbuild.yaml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Submit Cloud Build
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=_REGION=asia-northeast1,_REPOSITORY=gsc-repo,_IMAGE_NAME=bq-gsc-scraper,_VM_NAME=gsc-scheduler-vm,_ZONE=asia-northeast1-a,_STARTUP_SCRIPT_PATH=gce/startup-script.sh \
+            --project=bigquery-jukust \
+            --timeout=600s
+

@@ -8,6 +8,7 @@ from google.oauth2 import service_account
 from modules.gsc_fetcher import GSCConnector
 from utils.environment import config
 from utils.date_utils import get_current_jst_datetime, format_datetime_jst
+from utils.webhook_notifier import send_error_notification, send_success_notification
 
 from utils.logging_config import get_logger
 logger = get_logger(__name__)
@@ -116,6 +117,8 @@ def process_gsc_data():
             logger.info(f"Date {current_date} is already completed. Skipping.")
             continue
 
+        # 日付ごとのレコード数を初期化
+        date_total_records = 0
         start_record = 0
         while processed_count < daily_api_limit:
             try:
@@ -132,6 +135,7 @@ def process_gsc_data():
                     gsc_connector.insert_to_bigquery(records, str(current_date))
                     logger.info(f"Inserted {len(records)} records into BigQuery.")
                     processed_count += 1
+                    date_total_records += len(records)  # 日付ごとのレコード数を累積
 
                     # 進捗保存（アップサート）
                     save_processing_position(config, {
@@ -144,6 +148,8 @@ def process_gsc_data():
                     if len(records) < fetch_limit:
                         # 日付完了、次の日付へ
                         logger.info(f"All records for date {current_date} have been processed.")
+                        # 日付ごとのレコード数を記録
+                        daily_record_counts[str(current_date)] = date_total_records
                         break
                     else:
                         # 同じ日の続きから
@@ -156,6 +162,16 @@ def process_gsc_data():
 
             except Exception as e:
                 logger.error(f"Error at date {current_date}, record {start_record}: {e}", exc_info=True)
+                # エラー通知を送信
+                send_error_notification(
+                    error=e,
+                    error_type="GSC Data Processing Error",
+                    context={
+                        "date": str(current_date),
+                        "start_record": start_record,
+                        "processed_count": processed_count
+                    }
+                )
                 break
 
     logger.info(f"Processed {processed_count} API calls in total")
@@ -164,6 +180,28 @@ def process_gsc_data():
     if initial_run:
         update_initial_run_flag(config, False)
         logger.info("初回実行が完了しました。INITIAL_RUNフラグをfalseに更新しました。")
+    
+    # 正常終了時の通知を送信
+    try:
+        # 日ごとの統計情報をリスト形式に変換
+        daily_stats = [
+            {"date": date, "records": count}
+            for date, count in sorted(daily_record_counts.items())
+        ]
+        
+        # 成功通知を送信
+        send_success_notification(
+            message=f"GSCデータの取得とBigQueryへの保存が正常に完了しました。",
+            daily_stats=daily_stats if daily_stats else None,
+            context={
+                "processed_api_calls": processed_count,
+                "daily_api_limit": daily_api_limit,
+                "date_range": f"{start_date} to {end_date}",
+                "initial_run": initial_run
+            }
+        )
+    except Exception as e:
+        logger.warning(f"成功通知の送信に失敗しました: {e}")
 
 def get_completed_dates(config, date_list):
     """進捗テーブルから `is_date_completed=true` の日付を取得します。

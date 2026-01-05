@@ -29,6 +29,9 @@ json/*.json
 config/*.env
 *.env
 *.json
+# GitHub Actions用サービスアカウントキー
+github-actions-key.json
+*-key.json
 
 # IDE
 .idea/
