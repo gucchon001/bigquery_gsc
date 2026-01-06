@@ -299,11 +299,23 @@ gcloud run jobs update bq-gsc-scraper-job \
 - `Webhook_URL`がSecret Managerに正しく設定されているか確認
 - Webhook URLが有効か確認
 
+#### 5. GitHub ActionsでCloud Buildが失敗する
+
+**症状**: GitHub ActionsからCloud Buildを実行する際にエラーが発生する
+
+**解決方法**:
+- [GitHub Actions と Cloud Build のトラブルシューティングガイド](./docs/github_actions_troubleshooting.md)を参照
+- よくあるエラー:
+  - 認証エラー: `GCP_SA_KEY`シークレットが設定されているか確認
+  - 権限エラー: サービスアカウントに必要な権限が付与されているか確認
+  - Substitution変数エラー: `cloudbuild.yaml`の変数設定を確認
+
 ## ドキュメント
 
 - [Cloud Run セットアップガイド](./docs/cloudrun_setup.md) - Cloud Run Jobs環境の構築手順
 - [Cloud Scheduler 設定ガイド](./docs/cloudrun_scheduler_guide.md) - 定期実行の設定
 - [Git デプロイガイド](./docs/git_deployment.md) - GitHub Actionsによる自動デプロイ
+- [GitHub Actions トラブルシューティング](./docs/github_actions_troubleshooting.md) - GitHub ActionsとCloud Buildのエラー解決ガイド
 - [システム仕様書](./docs/system_specification.md) - システム全体の詳細仕様
 - [アーキテクチャドキュメント](./docs/architecture.md) - アーキテクチャとコンポーネント設計
 

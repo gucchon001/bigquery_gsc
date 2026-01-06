@@ -162,6 +162,8 @@ gcloud builds list --project=bigquery-jukust --limit=5
 
 ## トラブルシューティング
 
+**詳細なトラブルシューティングガイドは [GitHub Actions と Cloud Build のトラブルシューティングガイド](./github_actions_troubleshooting.md) を参照してください。**
+
 ### ビルドが失敗する場合
 
 1. Cloud Buildのログを確認：
@@ -173,7 +175,7 @@ gcloud builds list --project=bigquery-jukust --limit=5
    ```bash
    gcloud projects get-iam-policy bigquery-jukust \
      --flatten="bindings[].members" \
-     --filter="bindings.members:*cloudbuild*"
+     --format="table(bindings.role,bindings.members)"
    ```
 
 ### GitHub Actionsが失敗する場合
@@ -181,6 +183,18 @@ gcloud builds list --project=bigquery-jukust --limit=5
 1. GitHub Actionsのログを確認（リポジトリの「Actions」タブ）
 2. `GCP_SA_KEY`シークレットが正しく設定されているか確認
 3. サービスアカウントの権限を確認
+
+### よくあるエラーと解決方法
+
+#### 認証エラー
+- `GCP_SA_KEY`シークレットが設定されていない場合は、[トラブルシューティングガイド](./github_actions_troubleshooting.md#認証エラー)を参照
+
+#### 権限エラー
+- Cloud Buildバケットへのアクセス権限がない場合は、[トラブルシューティングガイド](./github_actions_troubleshooting.md#エラー2-cloud-buildバケットへのアクセス権限がない)を参照
+- サービスアカウントユーザー権限がない場合は、[トラブルシューティングガイド](./github_actions_troubleshooting.md#エラー3-サービスアカウントユーザー権限がない)を参照
+
+#### Cloud Build設定エラー
+- Substitution変数のエラーは、[トラブルシューティングガイド](./github_actions_troubleshooting.md#エラー4-substitution変数のエラー)を参照
 
 ## 注意事項
 
