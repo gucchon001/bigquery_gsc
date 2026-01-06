@@ -1,16 +1,10 @@
-# date_initializer.py
-from datetime import datetime, timedelta
-from google.cloud import bigquery
-from utils.date_utils import get_current_jst_datetime  # ユーティリティ関数のインポート
-
 # src/modules/date_initializer.py
-
 from datetime import datetime, timedelta
 from google.cloud import bigquery
 from utils.date_utils import get_current_jst_datetime
 from utils.environment import config
-
 from utils.logging_config import get_logger
+
 logger = get_logger(__name__)
 
 def initialize_date_range():

@@ -90,3 +90,11 @@ output/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Auto-generated documentation
+docs/merge.txt
+docs/detail_spec.txt
+docs/requirements_spec.txt
+
+# Test connection scripts (temporary)
+test_gsc_connection.py

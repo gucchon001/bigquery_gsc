@@ -2,9 +2,6 @@
 from urllib.parse import urlparse, urlunparse
 from collections import defaultdict
 
-from urllib.parse import urlparse, urlunparse
-from collections import defaultdict
-
 def normalize_url(url):
     """
     URLからクエリパラメータとフラグメント識別子を除去します。

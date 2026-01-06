@@ -141,6 +141,8 @@ gcloud run jobs update $JOB_NAME \
 
 定期実行のためのスケジューラーを設定します。
 
+> **📚 詳細ガイド**: Cloud Schedulerの設定でよくある間違いやトラブルシューティングについては、[Cloud Run スケジュール設定ガイド](./cloudrun_scheduler_guide.md)を参照してください。
+
 ```bash
 export PROJECT_ID="bigquery-jukust"
 export REGION="asia-northeast1"
@@ -238,6 +240,7 @@ gcloud projects get-iam-policy $PROJECT_ID \
 
 ## 参考リンク
 
+- [Cloud Run スケジュール設定ガイド](./cloudrun_scheduler_guide.md) - よくある間違いとトラブルシューティング
 - [Cloud Run Jobs ドキュメント](https://cloud.google.com/run/docs/create-jobs)
 - [Cloud Scheduler ドキュメント](https://cloud.google.com/scheduler/docs)
 - [Artifact Registry ドキュメント](https://cloud.google.com/artifact-registry/docs)
