@@ -105,6 +105,7 @@ def process_gsc_data():
     # GSC APIの1日あたりのクォータを設定
     daily_api_limit = config.gsc_settings['daily_api_limit']
     processed_count = 0
+    daily_record_counts = {}  # 日ごとのレコード数を記録する辞書
 
     # 新しい日付範囲を設定
     end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
