@@ -150,6 +150,7 @@ class WebhookNotifier:
     def send_success_notification(
         self,
         message: str,
+        daily_results: Optional[List[Dict[str, any]]] = None,
         daily_stats: Optional[List[Dict[str, any]]] = None,
         context: Optional[dict] = None
     ) -> bool:
@@ -158,8 +159,9 @@ class WebhookNotifier:
         
         Args:
             message: 成功メッセージ
-            daily_stats: 日ごとの処理件数統計（例: [{"date": "2024-01-01", "records": 1000}, ...]）
-            context: 追加のコンテキスト情報
+            daily_results: 日ごとの結果（取得件数またはスキップ）（例: [{"date": "2024-01-01", "records": 1000, "status": "取得"}, ...]）
+            daily_stats: 日ごとの処理件数統計（後方互換性のため残す）
+            context: 追加のコンテキスト情報（使用しない）
         
         Returns:
             送信成功時True、失敗時False
@@ -176,22 +178,24 @@ class WebhookNotifier:
             # メッセージの構築
             success_text = f"✅ **GSC Scraper 実行成功**\n\n{message}\n\n**実行時刻:** {timestamp}"
             
-            # 日ごとの統計情報を追加
-            if daily_stats:
-                success_text += "\n\n**日ごとの処理件数:**\n"
+            # 日ごとの結果を追加（daily_resultsを優先、なければdaily_statsを使用）
+            results = daily_results if daily_results else daily_stats
+            if results:
+                success_text += "\n\n**日ごとの処理結果:**\n"
                 total_records = 0
-                for stat in daily_stats:
-                    date = stat.get("date", "N/A")
-                    records = stat.get("records", 0)
-                    total_records += records
-                    success_text += f"- {date}: {records:,}件\n"
-                success_text += f"\n**合計:** {total_records:,}件"
-            
-            # コンテキスト情報
-            if context:
-                success_text += "\n\n**実行情報:**\n"
-                for key, value in context.items():
-                    success_text += f"- {key}: {value}\n"
+                for result in results:
+                    date = result.get("date", "N/A")
+                    records = result.get("records", 0)
+                    status = result.get("status", "取得")
+                    
+                    if status == "スキップ":
+                        success_text += f"- {date}: スキップ\n"
+                    else:
+                        success_text += f"- {date}: {records:,}件\n"
+                        total_records += records
+                
+                if total_records > 0:
+                    success_text += f"\n**合計:** {total_records:,}件"
             
             # Google Chat Card形式のメッセージ
             message_data = {
@@ -291,6 +295,7 @@ def send_error_notification(
 
 def send_success_notification(
     message: str,
+    daily_results: Optional[List[Dict[str, any]]] = None,
     daily_stats: Optional[List[Dict[str, any]]] = None,
     context: Optional[dict] = None
 ) -> bool:
@@ -299,8 +304,9 @@ def send_success_notification(
     
     Args:
         message: 成功メッセージ
-        daily_stats: 日ごとの処理件数統計
-        context: 追加のコンテキスト情報
+        daily_results: 日ごとの結果（取得件数またはスキップ）
+        daily_stats: 日ごとの処理件数統計（後方互換性のため残す）
+        context: 追加のコンテキスト情報（使用しない）
     
     Returns:
         送信成功時True、失敗時False
@@ -316,6 +322,7 @@ def send_success_notification(
     notifier = WebhookNotifier()
     result = notifier.send_success_notification(
         message=message,
+        daily_results=daily_results,
         daily_stats=daily_stats,
         context=context
     )

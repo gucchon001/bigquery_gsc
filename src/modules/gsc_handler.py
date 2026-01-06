@@ -106,6 +106,7 @@ def process_gsc_data():
     daily_api_limit = config.gsc_settings['daily_api_limit']
     processed_count = 0
     daily_record_counts = {}  # 日ごとのレコード数を記録する辞書
+    skipped_dates = []  # スキップされた日付を記録するリスト
 
     # 新しい日付範囲を設定
     end_date = datetime.today().date() - timedelta(days=2)  # GSCの制限により2日前まで
@@ -134,6 +135,7 @@ def process_gsc_data():
         is_completed = check_if_date_completed(config, current_date)
         if is_completed:
             logger.info(f"Date {current_date} is already completed. Skipping.")
+            skipped_dates.append(str(current_date))
             continue
 
         # 日付ごとのレコード数を初期化
@@ -183,6 +185,8 @@ def process_gsc_data():
                         "is_date_completed": True
                     })
                     logger.info(f"Progress saved for date {current_date} (0 records).")
+                    # 0件でも取得として記録
+                    daily_record_counts[str(current_date)] = 0
                     break
 
             except Exception as e:
@@ -209,24 +213,21 @@ def process_gsc_data():
     # 正常終了時の通知を送信
     try:
         logger.info("正常終了時の通知送信処理を開始します。")
-        # 日ごとの統計情報をリスト形式に変換
-        daily_stats = [
-            {"date": date, "records": count}
-            for date, count in sorted(daily_record_counts.items())
-        ]
+        # 日ごとの統計情報をリスト形式に変換（取得件数とスキップ情報を含む）
+        daily_results = []
+        # 取得した日付の情報
+        for date, count in sorted(daily_record_counts.items()):
+            daily_results.append({"date": date, "records": count, "status": "取得"})
+        # スキップされた日付の情報
+        for date in sorted(skipped_dates):
+            daily_results.append({"date": date, "records": 0, "status": "スキップ"})
         
-        logger.info(f"通知送信: daily_stats={daily_stats}, processed_count={processed_count}")
+        logger.info(f"通知送信: daily_results={daily_results}")
         
-        # 成功通知を送信
+        # 成功通知を送信（システム情報は送信しない）
         result = send_success_notification(
             message=f"GSCデータの取得とBigQueryへの保存が正常に完了しました。",
-            daily_stats=daily_stats if daily_stats else None,
-            context={
-                "processed_api_calls": processed_count,
-                "daily_api_limit": daily_api_limit,
-                "date_range": f"{start_date} to {end_date}",
-                "initial_run": initial_run
-            }
+            daily_results=daily_results if daily_results else None
         )
         logger.info(f"成功通知の送信結果: {result}")
     except Exception as e:
