@@ -13,6 +13,20 @@ from utils.webhook_notifier import send_error_notification, send_success_notific
 from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
+def _get_bigquery_credentials(config):
+    """BigQuery用の認証情報を取得（Cloud Run環境対応）"""
+    credentials_path = config.credentials_path
+    
+    if credentials_path:
+        # ファイルから読み込む（Secret Managerから取得した一時ファイルまたはローカルファイル）
+        return service_account.Credentials.from_service_account_file(str(credentials_path))
+    else:
+        # Cloud Run環境など、ファイルパスが指定されていない場合はデフォルトの認証情報を使用
+        from google.auth import default
+        credentials, _ = default()
+        logger.info("Using default Google credentials for BigQuery (e.g., Cloud Run service account)")
+        return credentials
+
 def cleanup_progress_table(config, retention_minutes: int = 90) -> None:
     """進捗テーブルの古い不要行を削除します。
 
@@ -20,8 +34,7 @@ def cleanup_progress_table(config, retention_minutes: int = 90) -> None:
     - `record_position = 0` の行を削除
     - 各 `data_date` で最新(`updated_at`最大)以外の履歴行を削除
     """
-    credentials_path = config.credentials_path
-    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    credentials = _get_bigquery_credentials(config)
     project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')
     dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')
     progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')
@@ -42,13 +55,18 @@ def cleanup_progress_table(config, retention_minutes: int = 90) -> None:
 
     # 2) 同一日で最新でない古い履歴行を削除（しきい値より古いもののみ）
     delete_non_latest = f"""
-        DELETE FROM `{table_id}`
+        DELETE FROM `{table_id}` AS t
         WHERE updated_at < @threshold
-          AND (data_date, updated_at) NOT IN (
-            SELECT data_date, MAX(updated_at) AS updated_at
-            FROM `{table_id}`
-            WHERE updated_at < @threshold
-            GROUP BY data_date
+          AND NOT EXISTS (
+            SELECT 1
+            FROM (
+              SELECT data_date, MAX(updated_at) AS max_updated_at
+              FROM `{table_id}`
+              WHERE updated_at < @threshold
+              GROUP BY data_date
+            ) AS latest
+            WHERE latest.data_date = t.data_date
+              AND latest.max_updated_at = t.updated_at
           )
     """
 
@@ -220,8 +238,7 @@ def get_completed_dates(config, date_list):
         list: 完了済みの日付リスト
     """
 
-    credentials_path = config.credentials_path
-    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    credentials = _get_bigquery_credentials(config)
     client = bigquery.Client(credentials=credentials, project=config.get_config_value('BIGQUERY', 'PROJECT_ID'))
     project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
     dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
@@ -265,8 +282,7 @@ def get_completed_dates(config, date_list):
 
 def check_if_date_completed(config, date):
     """指定された日付が進捗テーブルで完了しているかを確認します。"""
-    credentials_path = config.credentials_path
-    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    credentials = _get_bigquery_credentials(config)
     project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
     dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
     progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
@@ -332,8 +348,7 @@ def update_initial_run_flag(config, flag: bool):
 
 def save_processing_position(config, position):
     """処理位置を保存（アップサート操作）"""
-    credentials_path = config.credentials_path
-    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    credentials = _get_bigquery_credentials(config)
     project_id = config.get_config_value('BIGQUERY', 'PROJECT_ID')      # 'bigquery-jukust'
     dataset_id = config.get_config_value('BIGQUERY', 'DATASET_ID')      # 'past_gsc_202411'
     progress_table_id = config.get_config_value('BIGQUERY', 'PROGRESS_TABLE_ID')  # 'T_progress_tracking'
@@ -380,8 +395,7 @@ def get_last_processed_position(config):
     
     table_id = f"{project_id}.{dataset_id}.{progress_table_id}"        # 'bigquery-jukust.past_gsc_202411.T_progress_tracking'
 
-    credentials_path = config.credentials_path
-    credentials = service_account.Credentials.from_service_account_file(str(credentials_path))
+    credentials = _get_bigquery_credentials(config)
     client = bigquery.Client(credentials=credentials, project=project_id)
 
     query = f"""

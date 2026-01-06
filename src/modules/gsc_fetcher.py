@@ -1,6 +1,8 @@
 # src/modules/gsc_fetcher.py
 
+import os
 from google.oauth2 import service_account
+from google.auth import default
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import bigquery
@@ -30,14 +32,18 @@ class GSCConnector:
         # 認証情報ファイルのパスを Config から取得
         credentials_path = self.config.credentials_path
 
+        # Cloud Run環境ではデフォルトの認証情報を使用
         if not credentials_path:
-            raise ValueError("Credentials path not set in config.")
-
-        # サービスアカウント認証を設定
-        credentials = service_account.Credentials.from_service_account_file(
-            str(credentials_path),
-            scopes=["https://www.googleapis.com/auth/webmasters.readonly"]
-        )
+            # デフォルトの認証情報を使用（Cloud Run環境）
+            credentials, _ = default(scopes=["https://www.googleapis.com/auth/webmasters.readonly"])
+            self.logger.info("Using default service account credentials for GSC API")
+        else:
+            # サービスアカウント認証を設定（ローカル環境）
+            credentials = service_account.Credentials.from_service_account_file(
+                str(credentials_path),
+                scopes=["https://www.googleapis.com/auth/webmasters.readonly"]
+            )
+            self.logger.info(f"Using service account file: {credentials_path}")
 
         # GSC API クライアントを構築
         self.service = build('searchconsole', 'v1', credentials=credentials)
@@ -168,7 +174,16 @@ class GSCConnector:
     def _get_bigquery_credentials(self):
         """BigQuery 用の認証情報を取得します。"""
         credentials_path = self.config.credentials_path
-        return service_account.Credentials.from_service_account_file(str(credentials_path))
+        
+        if credentials_path:
+            # ファイルから読み込む（Secret Managerから取得した一時ファイルまたはローカルファイル）
+            return service_account.Credentials.from_service_account_file(str(credentials_path))
+        else:
+            # Cloud Run環境など、ファイルパスが指定されていない場合はデフォルトの認証情報を使用
+            from google.auth import default
+            credentials, _ = default()
+            self.logger.info("Using default Google credentials for BigQuery (e.g., Cloud Run service account)")
+            return credentials
 
     def _bq_schema(self):
         """Define and return the BigQuery table schema."""

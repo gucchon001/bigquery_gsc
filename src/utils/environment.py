@@ -1,6 +1,7 @@
 # src/utils/environment.py
 
 import os
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional, Any
@@ -287,7 +288,17 @@ class Config:
         return config
 
     def _load_secrets(self):
-        """環境変数ファイルの読み込み"""
+        """環境変数ファイルの読み込み（Secret Manager優先、ファイルはフォールバック）"""
+        # Secret Managerが利用可能な場合は優先
+        if SECRET_MANAGER_AVAILABLE and SecretManagerUtils.is_available():
+            try:
+                SecretManagerUtils.load_secrets_to_environment()
+                self.logger.info("Environment variables loaded from Secret Manager")
+                return
+            except Exception as e:
+                self.logger.warning(f"Failed to load from Secret Manager, falling back to file: {e}")
+
+        # ファイルから読み込む（フォールバック）
         env_path = self.base_path / 'config' / 'secrets.env'
         if not env_path.exists():
             raise FileNotFoundError(f"Secrets file not found: {env_path}")
@@ -300,7 +311,64 @@ class Config:
             raise
 
     def _setup_credentials(self):
-        """認証情報ファイルのパスを設定"""
+        """認証情報ファイルのパスを設定（Secret Manager優先、ファイルはフォールバック）"""
+        # Cloud Run環境の判定: K_SERVICE, K_REVISION, またはメタデータサーバーが利用可能
+        is_cloud_run = (
+            os.getenv('K_SERVICE') or 
+            os.getenv('K_REVISION') or
+            os.getenv('GOOGLE_CLOUD_PROJECT') or
+            os.getenv('GCP_PROJECT')
+        )
+        
+        # メタデータサーバーが利用可能か確認（Cloud Run環境の指標）
+        if not is_cloud_run:
+            try:
+                import requests
+                response = requests.get(
+                    "http://metadata.google.internal/computeMetadata/v1/instance",
+                    headers={"Metadata-Flavor": "Google"},
+                    timeout=1
+                )
+                if response.status_code == 200:
+                    is_cloud_run = True
+            except:
+                pass
+        
+        # Secret Managerから認証情報を取得を試みる（Cloud Run環境でも優先）
+        if SECRET_MANAGER_AVAILABLE and SecretManagerUtils.is_available():
+            try:
+                # Secret Managerから認証情報JSONを取得
+                credential_secret = SecretManagerUtils.get_secret("bigquery-credentials-json")
+                if credential_secret:
+                    # 一時ファイルに保存
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                        f.write(credential_secret)
+                        temp_cred_path = f.name
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_cred_path
+                    if is_cloud_run:
+                        self.logger.info("Google credentials loaded from Secret Manager in Cloud Run environment")
+                    else:
+                        self.logger.info("Google credentials loaded from Secret Manager")
+                    return
+            except Exception as e:
+                if is_cloud_run:
+                    # Cloud Run環境でSecret Managerから取得できない場合はエラー
+                    self.logger.error(f"Failed to load credentials from Secret Manager in Cloud Run environment: {e}")
+                    raise ValueError(
+                        f"Failed to load credentials from Secret Manager in Cloud Run environment: {e}. "
+                        "Please ensure the Secret Manager secret 'bigquery-credentials-json' exists and the service account has permission to access it."
+                    )
+                else:
+                    self.logger.warning(f"Failed to load credentials from Secret Manager, falling back to file: {e}")
+        
+        # Cloud Run環境でSecret Managerから取得できない場合はエラー
+        if is_cloud_run:
+            raise ValueError(
+                "Secret Manager is not available in Cloud Run environment. "
+                "Please ensure Secret Manager is configured and the service account has permission to access secrets."
+            )
+        
+        # ローカル環境: ファイルから読み込む（フォールバック）
         credentials_file = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
         if not credentials_file:
             raise ValueError("GOOGLE_APPLICATION_CREDENTIALS not set in secrets.env")
@@ -328,7 +396,25 @@ class Config:
 
     @property
     def credentials_path(self):
-        return os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        """認証情報ファイルのパスを取得（Secret Managerから取得した一時ファイルまたはローカルファイル）"""
+        # 環境変数から取得（Secret Managerから取得した一時ファイルまたはローカルファイル）
+        credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        
+        if credentials_path:
+            # 絶対パスの場合はそのまま返す（Secret Managerから取得した一時ファイル）
+            if Path(credentials_path).is_absolute():
+                return credentials_path
+            
+            # 相対パスの場合は config ディレクトリを追加
+            full_path = self.base_path / 'config' / credentials_path
+            if full_path.exists():
+                return str(full_path.absolute())
+            else:
+                # ファイルが存在しない場合は警告を出してNoneを返す
+                self.logger.warning(f"Credentials file not found: {full_path}")
+                return None
+        
+        return None
 
     @property
     def debug_mode(self):
