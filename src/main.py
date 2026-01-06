@@ -56,12 +56,6 @@ def main() -> None:
         print(f'機密情報ファイルの設定完了{{"demo": "{secrets_demo}"}}')
         print('ログ設定完了')
 
-        # テスト用: エラー通知をテストする場合は環境変数 TEST_ERROR_NOTIFICATION を設定
-        import os
-        if os.getenv('TEST_ERROR_NOTIFICATION') == 'true':
-            logger.info("テストモード: エラー通知をテストするために意図的にエラーを発生させます。")
-            raise ValueError("これはエラー通知のテストです。実際のエラーではありません。")
-
         # 進捗テーブルの不要行を軽くクリーンアップ（ストリーミングバッファが乗る前の早期段階で実施）
         try:
             cleanup_progress_table(config, retention_minutes=90)
