@@ -22,6 +22,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate GCP credentials
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          if [ -z "$GCP_SA_KEY" ]; then
+            echo "::error::GCP_SA_KEY secret is not set or is empty"
+            echo "Please set the GCP_SA_KEY secret in your repository settings:"
+            echo "Settings > Secrets and variables > Actions > New repository secret"
+            echo ""
+            echo "To create the secret, follow these steps:"
+            echo "1. Create a service account key:"
+            echo "   gcloud iam service-accounts keys create key.json --iam-account=YOUR_SA@PROJECT.iam.gserviceaccount.com"
+            echo "2. Copy the contents of key.json"
+            echo "3. Add it as a secret named 'GCP_SA_KEY' in GitHub"
+            exit 1
+          fi
+          # Validate that it's valid JSON (jq is available on Ubuntu runners)
+          if command -v jq &> /dev/null; then
+            if ! echo "$GCP_SA_KEY" | jq empty 2>/dev/null; then
+              echo "::error::GCP_SA_KEY does not appear to be valid JSON"
+              exit 1
+            fi
+            echo "✓ GCP_SA_KEY secret is set and appears to be valid JSON"
+          else
+            # Basic validation: check if it starts with { (JSON object)
+            if [ "${GCP_SA_KEY:0:1}" != "{" ]; then
+              echo "::warning::GCP_SA_KEY may not be valid JSON (does not start with '{')"
+            else
+              echo "✓ GCP_SA_KEY secret is set"
+            fi
+          fi
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
