@@ -25,6 +25,8 @@ class WebhookNotifier:
         self.webhook_url = webhook_url or os.getenv("Webhook_URL")
         if not self.webhook_url:
             logger.warning("Webhook_URLが設定されていません。通知は送信されません。")
+        else:
+            logger.info(f"WebhookNotifier initialized with URL: {self.webhook_url[:50]}...")
     
     def send_error_notification(
         self,
@@ -163,7 +165,10 @@ class WebhookNotifier:
             送信成功時True、失敗時False
         """
         if not self.webhook_url:
+            logger.warning("Webhook URLが設定されていないため、成功通知を送信できません。")
             return False
+        
+        logger.info("成功通知の送信を開始します。")
         
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -301,14 +306,19 @@ def send_success_notification(
         送信成功時True、失敗時False
     """
     # 通知が無効な場合は送信しない
-    if not is_notification_enabled("success"):
-        logger.debug("成功通知が無効化されているため、通知を送信しません。")
+    is_enabled = is_notification_enabled("success")
+    logger.info(f"成功通知の有効性チェック: {is_enabled}")
+    if not is_enabled:
+        logger.warning("成功通知が無効化されているため、通知を送信しません。")
         return False
     
+    logger.info("WebhookNotifierを初期化して成功通知を送信します。")
     notifier = WebhookNotifier()
-    return notifier.send_success_notification(
+    result = notifier.send_success_notification(
         message=message,
         daily_stats=daily_stats,
         context=context
     )
+    logger.info(f"成功通知の送信結果: {result}")
+    return result
 

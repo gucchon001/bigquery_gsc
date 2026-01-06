@@ -207,14 +207,17 @@ def process_gsc_data():
     
     # 正常終了時の通知を送信
     try:
+        logger.info("正常終了時の通知送信処理を開始します。")
         # 日ごとの統計情報をリスト形式に変換
         daily_stats = [
             {"date": date, "records": count}
             for date, count in sorted(daily_record_counts.items())
         ]
         
+        logger.info(f"通知送信: daily_stats={daily_stats}, processed_count={processed_count}")
+        
         # 成功通知を送信
-        send_success_notification(
+        result = send_success_notification(
             message=f"GSCデータの取得とBigQueryへの保存が正常に完了しました。",
             daily_stats=daily_stats if daily_stats else None,
             context={
@@ -224,8 +227,9 @@ def process_gsc_data():
                 "initial_run": initial_run
             }
         )
+        logger.info(f"成功通知の送信結果: {result}")
     except Exception as e:
-        logger.warning(f"成功通知の送信に失敗しました: {e}")
+        logger.error(f"成功通知の送信に失敗しました: {e}", exc_info=True)
 
 def get_completed_dates(config, date_list):
     """進捗テーブルから `is_date_completed=true` の日付を取得します。
