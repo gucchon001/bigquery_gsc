@@ -33,11 +33,10 @@ steps:
     args:
       - '-c'
       - |
-        IMAGE_URL="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest"
         if gcloud run jobs describe ${_JOB_NAME} --region=${_REGION} --project=${PROJECT_ID} &>/dev/null; then
           echo "Updating Cloud Run Job..."
           gcloud run jobs update ${_JOB_NAME} \
-            --image=${IMAGE_URL} \
+            --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest \
             --region=${_REGION} \
             --memory=2Gi \
             --cpu=1 \
@@ -48,7 +47,7 @@ steps:
         else
           echo "Creating Cloud Run Job..."
           gcloud run jobs create ${_JOB_NAME} \
-            --image=${IMAGE_URL} \
+            --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest \
             --region=${_REGION} \
             --memory=2Gi \
             --cpu=1 \
