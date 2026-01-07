@@ -1,6 +1,10 @@
-name: Deploy to GCP
+# このワークフローは無効化されました
+# Cloud Buildトリガーを使用するように切り替えました
+# セットアップ方法: scripts/setup_cloudbuild_trigger.sh を実行してください
 
-on:
+# name: Deploy to GCP
+
+# on:
   push:
     branches:
       - main

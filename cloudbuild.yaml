@@ -7,7 +7,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${_SHORT_SHA}'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${SHORT_SHA}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest'
       - '.'
@@ -17,7 +17,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${_SHORT_SHA}'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${SHORT_SHA}'
     id: 'push-image-sha'
 
   # Artifact Registryへのプッシュ（latestタグ）
@@ -60,20 +60,20 @@ steps:
     waitFor: ['push-image-latest']
 
 # 置換変数の定義
+# 注意: SHORT_SHAはCloud Buildトリガーが自動的に設定する組み込み変数です
 substitutions:
   _REGION: 'asia-northeast1'
   _REPOSITORY: 'gsc-repo'
   _IMAGE_NAME: 'bq-gsc-scraper'
   _JOB_NAME: 'bq-gsc-scraper-job'
   _SERVICE_ACCOUNT: 'jukust-gcs@bigquery-jukust.iam.gserviceaccount.com'
-  _SHORT_SHA: 'latest'
 
 # ビルドのタイムアウト（10分）
 timeout: '600s'
 
 # 使用するイメージ
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${_SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:latest'
 
 # オプション設定
