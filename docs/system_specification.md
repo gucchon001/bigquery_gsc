@@ -315,3 +315,6 @@ progress_table_id = T_progress_tracking
 - キャッシュ機能の追加
 - データ圧縮の最適化
 
+
+
+

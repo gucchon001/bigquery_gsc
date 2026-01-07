@@ -15,6 +15,12 @@ from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
+# ユーザーID辞書（Webhookでのメンション用）
+# 例: <users/111863040728288757718>
+USER_IDS: Dict[str, str] = {
+    "haraguchi": "111863040728288757718",
+    # 他のメンバーも判明次第ここに追加
+}
 
 class WebhookNotifier:
     """Google Chat Webhook通知クラス"""
@@ -51,7 +57,8 @@ class WebhookNotifier:
         error_message: str,
         error_type: Optional[str] = None,
         traceback_str: Optional[str] = None,
-        context: Optional[dict] = None
+        context: Optional[dict] = None,
+        mentions: Optional[List[str]] = None,
     ) -> bool:
         """
         エラー通知をGoogle Chatに送信します。
@@ -73,13 +80,13 @@ class WebhookNotifier:
             # Google Chat APIを使用する場合（メンション機能付き）
             if self.space_id and self.chat_service:
                 return self._send_error_notification_via_api(
-                    error_message, error_type, traceback_str, context
+                    error_message, error_type, traceback_str, context, mentions
                 )
             
             # Webhook方式（従来の方法）
             if self.webhook_url:
                 message = self._build_error_message(
-                    error_message, error_type, traceback_str, context
+                    error_message, error_type, traceback_str, context, mentions
                 )
                 
                 response = requests.post(
@@ -107,7 +114,8 @@ class WebhookNotifier:
         error_message: str,
         error_type: Optional[str] = None,
         traceback_str: Optional[str] = None,
-        context: Optional[dict] = None
+        context: Optional[dict] = None,
+        mentions: Optional[List[str]] = None,
     ) -> dict:
         """
         Google Chat用のメッセージを構築します。
@@ -126,9 +134,15 @@ class WebhookNotifier:
         # ヘッダー部分
         header_text = f"🚨 **GSC Scraper エラー通知**"
         
+        # メンション（Webhookでは <users/USER_ID> 形式で可能なケースあり）
+        mention_line = ""
+        if mentions:
+            ids = [USER_IDS[m] for m in mentions if m in USER_IDS]
+            if ids:
+                mention_line = " ".join([f"<users/{uid}>" for uid in ids]) + "\n\n"
+
         # エラー情報部分
-        # 注意: Webhook方式ではメンションは表示されませんが、Google Chat API方式ではメンションが機能します
-        error_info = f"**エラーメッセージ:**\n{error_message}"
+        error_info = f"{mention_line}**エラーメッセージ:**\n{error_message}"
         
         if error_type:
             error_info += f"\n\n**エラータイプ:** {error_type}"
@@ -180,7 +194,8 @@ class WebhookNotifier:
         error_message: str,
         error_type: Optional[str] = None,
         traceback_str: Optional[str] = None,
-        context: Optional[dict] = None
+        context: Optional[dict] = None,
+        mentions: Optional[List[str]] = None
     ) -> bool:
         """
         Google Chat APIを使用してエラー通知を送信します（メンション機能付き）。
@@ -197,8 +212,11 @@ class WebhookNotifier:
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # メンション対象のユーザー
-            mention_email = "y-haraguchi@tomonokai-corp.com"
+            # メンション対象（ユーザーID優先）
+            mention_ids = [USER_IDS[m] for m in (mentions or []) if m in USER_IDS]
+            mention_text = ""
+            if mention_ids:
+                mention_text = " ".join([f"<users/{uid}>" for uid in mention_ids]) + " "
             
             # エラーメッセージの構築
             error_text = f"**エラーメッセージ:**\n{error_message}"
@@ -221,9 +239,8 @@ class WebhookNotifier:
                 error_text += f"\n\n**トレースバック（末尾）:**\n```\n{truncated_traceback}\n```"
             
             # Google Chat API形式のメッセージ（cardsV2形式でメンションを含む）
-            # メンションはtextフィールドに<users/メールアドレス>形式で記述
             message_body = {
-                "text": f"<users/{mention_email}> エラーが発生しました",
+                "text": f"{mention_text}エラーが発生しました",
                 "cardsV2": [
                     {
                         "cardId": "error-notification",
