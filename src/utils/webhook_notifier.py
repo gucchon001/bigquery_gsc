@@ -99,8 +99,11 @@ class WebhookNotifier:
         # ヘッダー部分
         header_text = f"🚨 **GSC Scraper エラー通知**"
         
+        # メンション（原口さん）
+        mention = "<users/y-haraguchi@tomonokai-corp.com>"
+        
         # エラー情報部分
-        error_info = f"**エラーメッセージ:**\n{error_message}"
+        error_info = f"{mention} **エラーが発生しました**\n\n**エラーメッセージ:**\n{error_message}"
         
         if error_type:
             error_info += f"\n\n**エラータイプ:** {error_type}"
