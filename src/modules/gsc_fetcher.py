@@ -156,7 +156,7 @@ class GSCConnector:
             end_date (str, optional): 終了日付（YYYY-MM-DD）
         """
         start_date = start_date or self.config.gsc_settings['start_date']
-        end_date = end_date or datetime.now().strftime('%Y-%m-%d')
+        end_date = end_date or get_current_jst_datetime().strftime('%Y-%m-%d')
         batch_size = self.config.gsc_settings['batch_size']
 
         try:
