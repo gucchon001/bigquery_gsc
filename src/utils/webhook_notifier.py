@@ -12,6 +12,7 @@ from datetime import datetime
 from google.auth import default
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from utils.date_utils import get_current_jst_datetime, format_datetime_jst
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class WebhookNotifier:
         Returns:
             Google Chat API形式のメッセージ辞書
         """
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = format_datetime_jst(get_current_jst_datetime())
         
         # ヘッダー部分
         header_text = f"🚨 **GSC Scraper エラー通知**"
@@ -210,7 +211,7 @@ class WebhookNotifier:
             送信成功時True、失敗時False
         """
         try:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = format_datetime_jst(get_current_jst_datetime())
             
             # メンション対象（ユーザーID優先）
             mention_ids = [USER_IDS[m] for m in (mentions or []) if m in USER_IDS]
@@ -315,7 +316,7 @@ class WebhookNotifier:
         logger.info("成功通知の送信を開始します。")
         
         try:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = format_datetime_jst(get_current_jst_datetime())
             
             # メッセージの構築
             success_text = f"✅ **GSC Scraper 実行成功**\n\n{message}\n\n**実行時刻:** {timestamp}"
